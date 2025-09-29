@@ -1,0 +1,69 @@
+{
+  "manifest_version": 3,
+  "name": "Chat AI Clip Saver",
+  "version": "1.0.0",
+  "default_locale": "ko",
+  "description": "Save and organize clips from AI conversations like ChatGPT and Claude",
+  "permissions": [
+    "storage",
+    "scripting",
+    "contextMenus",
+    "activeTab",
+    "clipboardWrite",
+    "tabs"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://chat.openai.com/*"],
+      "js": ["test-simple.js"],
+      "run_at": "document_end"
+    },
+    {
+      "matches": ["https://claude.ai/*"],
+      "js": ["test-simple.js"],
+      "run_at": "document_end"
+    },
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Chat AI Clip Saver",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "32": "icons/icon32.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "commands": {
+    "save-clip": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+S",
+        "mac": "Command+Shift+S"
+      },
+      "description": "Save selected text as clip"
+    }
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "web_accessible_resources": [
+    {
+      "resources": ["popup.html", "popup-overlay.css", "src/StorageManager.js", "src/CategoryManager.js", "src/ClipManager.js", "src/PopupManager.js"],
+      "matches": ["<all_urls>"]
+    }
+  ]
+}

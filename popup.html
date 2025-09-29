@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Chat AI Clip Saver</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="container">
+    <!-- Global Header -->
+    <header class="global-header">
+      <div class="app-title">
+        <span class="app-logo">📋</span>
+        <h1>CLITEGORIES</h1>
+      </div>
+      <div class="header-actions">
+        <button id="test-inject-btn" class="icon-btn" title="Test Script Injection">🧪</button>
+        <button id="save-selection-btn" class="icon-btn" title="Save Current Selection">💾</button>
+        <button id="settings-btn" class="icon-btn" title="Settings">⚙️</button>
+      </div>
+    </header>
+
+    <!-- Library Main View -->
+    <div class="library-main">
+      <!-- Left Sidebar: Categories -->
+      <div class="sidebar">
+        <div class="sidebar-header">
+          <h2>Categories</h2>
+          <button id="add-category-btn" class="icon-btn" title="Add Category">➕</button>
+        </div>
+        <div class="category-search">
+          <input type="text" id="category-search-input" placeholder="Search categories...">
+        </div>
+        <div id="category-tree" class="category-tree">
+          <!-- Categories will be populated here -->
+        </div>
+      </div>
+
+      <!-- Right Main Area: Clip List -->
+      <div class="content-area">
+        <div class="content-header">
+          <div class="category-info">
+            <h3 id="selected-category-title">All Clips</h3>
+            <span class="sort-order">(최신순)</span>
+          </div>
+          <div class="view-options">
+            <button id="sort-btn" class="icon-btn" title="Sort">↕️</button>
+          </div>
+        </div>
+        <div class="search-bar">
+          <input type="text" id="search-input" placeholder="Search clips...">
+        </div>
+
+        <div id="clips-container" class="clips-container">
+          <!-- Clips will be populated here -->
+        </div>
+      </div>
+    </div>
+
+    <!-- Empty State -->
+    <div id="empty-state" class="empty-state">
+      <div class="empty-icon">✨</div>
+      <h2>No clips yet</h2>
+      <p>Drag text from ChatGPT to save your first clip! ✨</p>
+    </div>
+
+    <!-- Category Empty State -->
+    <div id="category-empty-state" class="empty-state hidden">
+      <div class="empty-icon">📂</div>
+      <h2>Create your first category!</h2>
+      <p>Organize your clips with custom categories</p>
+    </div>
+
+    <!-- Settings Panel -->
+    <div id="settings-panel" class="settings-panel hidden">
+      <div class="settings-header">
+        <h2>Settings</h2>
+        <button id="close-settings" class="icon-btn" title="Close">×</button>
+      </div>
+
+      <div class="settings-content">
+        <div class="settings-section">
+          <h3>General Settings</h3>
+          <div class="setting-group">
+            <label for="language-select">Language</label>
+            <select id="language-select" class="form-select">
+              <option value="ko">한국어</option>
+              <option value="en">English</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="settings-section">
+          <h3>Appearance</h3>
+          <div class="setting-group">
+            <label for="theme-select">Theme</label>
+            <select id="theme-select" class="form-select">
+              <option value="light">Light Mode</option>
+              <option value="dark">Dark Mode</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="settings-section">
+          <h3>About</h3>
+          <div class="setting-group">
+            <div class="setting-info">
+              <span>Version</span>
+              <span>1.0.0</span>
+            </div>
+            <div class="setting-info">
+              <span>Author</span>
+              <span>ClipGo Team</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="toast hidden">
+      <span id="toast-message"></span>
+      <button id="toast-close" class="icon-btn">×</button>
+    </div>
+  </div>
+
+  <script src="src/StorageManager.js"></script>
+  <script src="src/CategoryManager.js"></script>
+  <script src="src/ClipManager.js"></script>
+  <script src="src/I18nManager.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>

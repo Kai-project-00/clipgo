@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Popup Position Test Runner</title>
+    <style>
+        body {
+            font-family: 'Courier New', monospace;
+            margin: 20px;
+            background-color: #f5f5f5;
+        }
+        .test-container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            max-width: 800px;
+        }
+        .test-result {
+            margin: 5px 0;
+            padding: 5px;
+            border-radius: 4px;
+        }
+        .test-result.passed {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        .test-result.failed {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+        .summary {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #e9ecef;
+            border-radius: 8px;
+            font-weight: bold;
+        }
+        .summary.all-passed {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        .summary.some-failed {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 10px 0;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        #testOutput {
+            margin-top: 20px;
+            white-space: pre-wrap;
+            font-family: 'Courier New', monospace;
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 4px;
+            border: 1px solid #dee2e6;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1>🧪 확장 팝업 위치 계산 테스트</h1>
+        <p>PopupManager의 위치 계산 로직을 TDD 방식으로 테스트합니다.</p>
+
+        <button onclick="runTests()">🚀 테스트 실행</button>
+        <button onclick="clearResults()">🧹 결과 지우기</button>
+
+        <div id="testResults"></div>
+        <div id="testSummary"></div>
+        <div id="testOutput"></div>
+    </div>
+
+    <script src="test-popup-position.js"></script>
+    <script>
+        function runTests() {
+            const testResultsDiv = document.getElementById('testResults');
+            const testSummaryDiv = document.getElementById('testSummary');
+            const testOutputDiv = document.getElementById('testOutput');
+
+            // 기존 결과 지우기
+            testResultsDiv.innerHTML = '';
+            testSummaryDiv.innerHTML = '';
+            testOutputDiv.textContent = '';
+
+            console.log = function(...args) {
+                testOutputDiv.textContent += args.join(' ') + '\n';
+                console.log.apply(console, args);
+            };
+
+            // 테스트 실행
+            const test = new PopupPositionTest();
+            const allPassed = test.runAllTests();
+
+            // 결과 표시
+            test.testResults.forEach(result => {
+                const div = document.createElement('div');
+                div.className = 'test-result ' + (result.startsWith('✅') ? 'passed' : 'failed');
+                div.textContent = result;
+                testResultsDiv.appendChild(div);
+            });
+
+            // 요약 표시
+            const summary = document.createElement('div');
+            summary.className = 'summary ' + (allPassed ? 'all-passed' : 'some-failed');
+            summary.innerHTML = `
+                <h3>📊 테스트 결과 요약</h3>
+                <p>총 테스트: ${test.totalTests}, 통과: ${test.passedTests}, 실패: ${test.totalTests - test.passedTests}</p>
+                <p>성공률: ${((test.passedTests / test.totalTests) * 100).toFixed(1)}%</p>
+                <p>${allPassed ? '🎉 모든 테스트 통과!' : '⚠️ 일부 테스트 실패 - 구현이 필요합니다.'}</p>
+            `;
+            testSummaryDiv.appendChild(summary);
+        }
+
+        function clearResults() {
+            document.getElementById('testResults').innerHTML = '';
+            document.getElementById('testSummary').innerHTML = '';
+            document.getElementById('testOutput').textContent = '';
+        }
+
+        // 페이지 로드 시 자동 실행
+        window.onload = function() {
+            console.log('페이지 로드 완료 - 테스트 준비됨');
+        };
+    </script>
+</body>
+</html>

@@ -1,0 +1,354 @@
+/**
+ * Chat AI Clip Saver - 확장 팝업 스타일
+ * 다크 모드를 지원하는 현대적이고 접근성 높은 디자인
+ */
+
+/* CSS 변수로 테마 관리 */
+:root {
+    /* 라이트 모드 색상 */
+    --bg-primary: #ffffff;
+    --bg-secondary: #f8f9fa;
+    --bg-overlay: rgba(255, 255, 255, 0.95);
+    --text-primary: #212529;
+    --text-secondary: #6c757d;
+    --border-color: #dee2e6;
+    --shadow-color: rgba(0, 0, 0, 0.1);
+    --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    --primary-color: #667eea;
+    --primary-hover: #5a67d8;
+    --success-color: #4CAF50;
+    --error-color: #f44336;
+    --input-bg: #ffffff;
+    --input-border: #ced4da;
+    --input-focus: #667eea;
+}
+
+/* 다크 모드 자동 감지 */
+@media (prefers-color-scheme: dark) {
+    :root {
+        --bg-primary: #1a1a1a;
+        --bg-secondary: #2d2d2d;
+        --bg-overlay: rgba(26, 26, 26, 0.95);
+        --text-primary: #ffffff;
+        --text-secondary: #b0b0b0;
+        --border-color: #404040;
+        --shadow-color: rgba(0, 0, 0, 0.3);
+        --primary-gradient: linear-gradient(135deg, #9f7aea 0%, #805ad5 100%);
+        --primary-color: #9f7aea;
+        --primary-hover: #805ad5;
+        --success-color: #66bb6a;
+        --error-color: #ef5350;
+        --input-bg: #2d2d2d;
+        --input-border: #404040;
+        --input-focus: #9f7aea;
+    }
+}
+
+/* 팝업 오버레이 기본 스타일 */
+.chat-ai-popup-overlay {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    font-size: 14px;
+    line-height: 1.5;
+    color: var(--text-primary);
+    background-color: var(--bg-overlay);
+    border-radius: 12px;
+    box-shadow: 0 10px 40px var(--shadow-color), 0 0 0 1px var(--border-color);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    max-width: 320px;
+    width: 100%;
+    animation: popupFadeIn 0.3s ease-out;
+    outline: none;
+}
+
+/* 팝업 컨테이너 */
+.popup-container {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+/* 팝업 헤더 */
+.popup-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border-color);
+    background-color: var(--bg-primary);
+    border-radius: 12px 12px 0 0;
+}
+
+.header-left {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.app-logo {
+    font-size: 18px;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.popup-title {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.close-btn {
+    background: none;
+    border: none;
+    font-size: 20px;
+    color: var(--text-secondary);
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 4px;
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+}
+
+.close-btn:hover {
+    background-color: var(--bg-secondary);
+    color: var(--text-primary);
+}
+
+.close-btn:focus {
+    outline: 2px solid var(--input-focus);
+    outline-offset: 2px;
+}
+
+/* 팝업 콘텐츠 */
+.popup-content {
+    padding: 20px;
+    background-color: var(--bg-primary);
+    border-radius: 0 0 12px 12px;
+}
+
+/* 폼 그룹 */
+.form-group {
+    margin-bottom: 16px;
+}
+
+.form-group:last-child {
+    margin-bottom: 0;
+}
+
+label {
+    display: block;
+    margin-bottom: 6px;
+    font-weight: 500;
+    color: var(--text-primary);
+    font-size: 13px;
+}
+
+.label-icon {
+    margin-right: 6px;
+    font-size: 14px;
+}
+
+/* 입력 필드 */
+.title-input {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid var(--input-border);
+    border-radius: 6px;
+    font-size: 14px;
+    background-color: var(--input-bg);
+    color: var(--text-primary);
+    transition: all 0.2s ease;
+    box-sizing: border-box;
+}
+
+.title-input:focus {
+    outline: none;
+    border-color: var(--input-focus);
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.title-input::placeholder {
+    color: var(--text-secondary);
+}
+
+/* 미리보기 영역 */
+.preview-text {
+    width: 100%;
+    min-height: 80px;
+    max-height: 120px;
+    padding: 10px 12px;
+    border: 1px solid var(--input-border);
+    border-radius: 6px;
+    background-color: var(--bg-secondary);
+    color: var(--text-secondary);
+    font-size: 13px;
+    line-height: 1.4;
+    overflow-y: auto;
+    resize: vertical;
+    box-sizing: border-box;
+}
+
+.preview-text::-webkit-scrollbar {
+    width: 6px;
+}
+
+.preview-text::-webkit-scrollbar-track {
+    background: var(--bg-secondary);
+    border-radius: 3px;
+}
+
+.preview-text::-webkit-scrollbar-thumb {
+    background: var(--border-color);
+    border-radius: 3px;
+}
+
+.preview-text::-webkit-scrollbar-thumb:hover {
+    background: var(--text-secondary);
+}
+
+/* 카테고리 선택 */
+.category-select {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid var(--input-border);
+    border-radius: 6px;
+    font-size: 14px;
+    background-color: var(--input-bg);
+    color: var(--text-primary);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-sizing: border-box;
+}
+
+.category-select:focus {
+    outline: none;
+    border-color: var(--input-focus);
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.category-select option {
+    background-color: var(--input-bg);
+    color: var(--text-primary);
+}
+
+/* 저장 버튼 */
+.save-btn {
+    width: 100%;
+    padding: 12px 16px;
+    border: none;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 600;
+    color: white;
+    background: var(--primary-gradient);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+}
+
+.save-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+.save-btn:focus {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.3);
+}
+
+.save-btn:active {
+    transform: translateY(0);
+}
+
+/* 토스트 메시지 */
+.chat-ai-toast {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    font-weight: 500;
+    letter-spacing: 0.025em;
+    pointer-events: none;
+}
+
+/* 애니메이션 */
+@keyframes popupFadeIn {
+    from {
+        opacity: 0;
+        transform: scale(0.95) translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
+}
+
+/* 접근성 개선 */
+.chat-ai-popup-overlay:focus-visible {
+    outline: 2px solid var(--input-focus);
+    outline-offset: 2px;
+}
+
+/* 키보드 네비게이션 */
+.title-input:focus,
+.category-select:focus,
+.close-btn:focus,
+.save-btn:focus {
+    outline: 2px solid var(--input-focus);
+    outline-offset: 2px;
+}
+
+/* 고대비 모드 지원 */
+@media (prefers-contrast: high) {
+    :root {
+        --border-color: #000000;
+        --shadow-color: rgba(0, 0, 0, 0.5);
+    }
+
+    .chat-ai-popup-overlay {
+        border: 2px solid var(--border-color);
+    }
+}
+
+/* 모션 감소 지원 */
+@media (prefers-reduced-motion: reduce) {
+    .chat-ai-popup-overlay,
+    .save-btn,
+    .close-btn {
+        transition: none;
+        animation: none;
+    }
+}
+
+/* 반응형 디자인 */
+@media (max-width: 480px) {
+    .chat-ai-popup-overlay {
+        max-width: 280px;
+        margin: 10px;
+    }
+
+    .popup-header {
+        padding: 12px 16px;
+    }
+
+    .popup-content {
+        padding: 16px;
+    }
+
+    .save-btn {
+        padding: 10px 14px;
+        font-size: 13px;
+    }
+}
+
+/* 프린트 스타일 */
+@media print {
+    .chat-ai-popup-overlay {
+        display: none !important;
+    }
+}
