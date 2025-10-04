@@ -337,11 +337,23 @@ class PopupManager {
         const saveBtn = this.popup.querySelector('#popup-save-btn');
         saveBtn.addEventListener('click', () => this.handleSave());
 
-        // 카테고리 선택 - 이벤트 버블링 방지
+        // 카테고리 선택 - Select 요소 특수 처리
         const categorySelect = this.popup.querySelector('#popup-category-select');
         if (categorySelect) {
+            // Select 요소의 모든 마우스 이벤트에 대해 버블링 방지
+            ['mousedown', 'mouseup', 'click'].forEach(eventType => {
+                categorySelect.addEventListener(eventType, (event) => {
+                    event.stopPropagation(); // Select 요소의 이벤트 버블링 방지
+                });
+            });
+
+            // Select 옵션들에 대한 이벤트 처리 (이벤트 위임)
             categorySelect.addEventListener('click', (event) => {
-                event.stopPropagation(); // 클릭 이벤트 버블링 방지
+                // 실제 옵션이 클릭되었을 때만 처리
+                if (event.target.tagName === 'OPTION') {
+                    event.stopPropagation();
+                    console.log('카테고리 옵션 선택:', event.target.value);
+                }
             });
 
             // change 이벤트는 정상적으로 동작해야 함
@@ -350,12 +362,23 @@ class PopupManager {
             });
         }
 
-        // 모든 팝업 내부 인터랙티브 요소에 이벤트 버블링 방지
-        const interactiveElements = this.popup.querySelectorAll('input, select, button, textarea, [tabindex]');
+        // 팝업 내부 모든 인터랙티브 요소에 대한 포괄적 이벤트 처리
+        const interactiveElements = this.popup.querySelectorAll('input, button, textarea, [tabindex]');
         interactiveElements.forEach(element => {
-            element.addEventListener('click', (event) => {
-                event.stopPropagation(); // 모든 인터랙티브 요소의 클릭 이벤트 버블링 방지
+            // 모든 인터랙티브 요소의 마우스 이벤트에 대해 버블링 방지
+            ['mousedown', 'mouseup', 'click'].forEach(eventType => {
+                element.addEventListener(eventType, (event) => {
+                    event.stopPropagation(); // 모든 인터랙티브 요소의 이벤트 버블링 방지
+                });
             });
+        });
+
+        // 팝업 전체에 대한 이벤트 위임 패턴
+        this.popup.addEventListener('mousedown', (event) => {
+            // 팝업 내부의 모든 요소 클릭 시 버블링 방지
+            if (event.target.closest('.popup-container')) {
+                event.stopPropagation();
+            }
         });
 
         // 외부 클릭 감지
