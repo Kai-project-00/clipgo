@@ -337,6 +337,27 @@ class PopupManager {
         const saveBtn = this.popup.querySelector('#popup-save-btn');
         saveBtn.addEventListener('click', () => this.handleSave());
 
+        // 카테고리 선택 - 이벤트 버블링 방지
+        const categorySelect = this.popup.querySelector('#popup-category-select');
+        if (categorySelect) {
+            categorySelect.addEventListener('click', (event) => {
+                event.stopPropagation(); // 클릭 이벤트 버블링 방지
+            });
+
+            // change 이벤트는 정상적으로 동작해야 함
+            categorySelect.addEventListener('change', (event) => {
+                console.log('카테고리 변경:', event.target.value);
+            });
+        }
+
+        // 모든 팝업 내부 인터랙티브 요소에 이벤트 버블링 방지
+        const interactiveElements = this.popup.querySelectorAll('input, select, button, textarea, [tabindex]');
+        interactiveElements.forEach(element => {
+            element.addEventListener('click', (event) => {
+                event.stopPropagation(); // 모든 인터랙티브 요소의 클릭 이벤트 버블링 방지
+            });
+        });
+
         // 외부 클릭 감지
         document.addEventListener('click', this.handleOutsideClick.bind(this));
 

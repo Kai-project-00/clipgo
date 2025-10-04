@@ -368,6 +368,9 @@
                     titleInput.select(); // 텍스트 전체 선택
                 }
 
+                // 팝업 이벤트 리스너 설정 (이벤트 버블링 방지)
+                setupPopupEventListeners(popup);
+
                 // 외부 클릭 시 닫기
                 document.addEventListener('click', handleOutsideClick);
 
@@ -475,6 +478,16 @@
             if (popup && !popup.contains(event.target)) {
                 hideTestPopup();
             }
+        }
+
+        function setupPopupEventListeners(popup) {
+            // 모든 팝업 내부 인터랙티브 요소에 이벤트 버블링 방지
+            const interactiveElements = popup.querySelectorAll('input, select, button, textarea, [tabindex]');
+            interactiveElements.forEach(element => {
+                element.addEventListener('click', (event) => {
+                    event.stopPropagation(); // 모든 인터랙티브 요소의 클릭 이벤트 버블링 방지
+                });
+            });
         }
 
         function generateAutoTitle(text, options = {}) {
