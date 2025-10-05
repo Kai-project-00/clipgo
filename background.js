@@ -153,21 +153,28 @@ class BackgroundService {
 
   async handleSaveClipFromSelection(request, sender) {
     try {
+      // clipOptions이 있는 경우 해당 정보 사용
+      const clipTitle = request.clipOptions?.title || this.generateTitle(request.text);
+      const clipCategoryIds = request.clipOptions?.categoryIds || [];
+
       const clip = {
         id: Date.now().toString(),
         text: request.text,
-        title: this.generateTitle(request.text),
+        title: clipTitle,
         tags: [],
-        categoryIds: [],
+        categoryIds: clipCategoryIds,
         url: request.url,
         source: this.getSourceFromUrl(request.url),
         createdAt: Date.now()
       };
 
       await this.saveClip(clip);
-      chrome.action.openPopup();
+      console.log('✅ 클립 저장 성공:', clip);
+
+      // chrome.action.openPopup() 제거 - 팝업을 강제로 열지 않음
     } catch (error) {
       console.error('Error saving clip from selection:', error);
+      throw error; // 에러를 호출자에게 전달
     }
   }
 

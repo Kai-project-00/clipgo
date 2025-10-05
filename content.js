@@ -447,36 +447,55 @@ class PopupManager {
             return;
         }
 
-        // 실제 저장 로직은 나중에 ClipManager와 연동
-        console.log('저장될 클립:', {
+        // 실제 저장 로직 구현
+        const saveData = {
             title,
             categoryId,
             text: this.currentSelection.toString(),
             url: window.location.href,
             source: this.detectAIService()
+        };
+
+        // chrome.runtime.sendMessage를 통해 백그라운드 스크립트로 저장 요청
+        chrome.runtime.sendMessage({
+            action: 'saveClipFromSelection',
+            text: saveData.text,
+            url: saveData.url,
+            title: document.title,
+            clipOptions: {
+                title: saveData.title,
+                categoryIds: saveData.categoryId ? [saveData.categoryId] : []
+            }
+        }).then(() => {
+            // 저장 완료 토스트 표시
+            this.showToast('Saved ✓');
+            // 팝업 닫기
+            this.hideSelectionPopup();
+        }).catch(error => {
+            console.error('저장 실패:', error);
+            this.showToast('Save failed ✗', 'error');
         });
-
-        // 저장 완료 토스트 표시
-        this.showToast('Saved ✓');
-
-        // 팝업 닫기
-        this.hideSelectionPopup();
     }
 
     /**
      * 토스트 메시지 표시
      * @param {string} message - 표시할 메시지
+     * @param {string} type - 메시지 타입 ('success' 또는 'error')
      */
-    showToast(message) {
+    showToast(message, type = 'success') {
         const toast = document.createElement('div');
         toast.className = 'chat-ai-toast';
         toast.textContent = message;
+
+        // 타입에 따라 색상 변경
+        const backgroundColor = type === 'error' ? '#f44336' : '#4CAF50';
+
         toast.style.cssText = `
             position: fixed;
             bottom: 20px;
             left: 50%;
             transform: translateX(-50%);
-            background-color: #4CAF50;
+            background-color: ${backgroundColor};
             color: white;
             padding: 12px 24px;
             border-radius: 4px;
