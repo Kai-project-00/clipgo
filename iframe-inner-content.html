@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Iframe Inner Content</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        .content-box {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 25px;
+            margin: 20px 0;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        h1 {
+            text-align: center;
+            font-size: 2.5rem;
+            margin-bottom: 30px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+        .selectable-text {
+            font-size: 1.1rem;
+            line-height: 1.8;
+            margin: 15px 0;
+            padding: 15px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 10px;
+            border-left: 4px solid rgba(255, 255, 255, 0.5);
+        }
+        .highlight {
+            background: rgba(255, 255, 255, 0.2);
+            padding: 3px 6px;
+            border-radius: 5px;
+            font-weight: bold;
+        }
+        .info-panel {
+            background: rgba(255, 255, 255, 0.15);
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        .code-block {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 15px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            margin: 15px 0;
+            overflow-x: auto;
+        }
+        .emoji-section {
+            text-align: center;
+            margin: 30px 0;
+        }
+        .emoji-section h3 {
+            margin-bottom: 20px;
+        }
+        .emoji-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 15px;
+            margin: 20px 0;
+        }
+        .emoji-item {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 15px;
+            border-radius: 10px;
+            text-align: center;
+            font-size: 2rem;
+        }
+        .footer {
+            text-align: center;
+            margin-top: 40px;
+            opacity: 0.8;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Iframe Content</h1>
+
+        <div class="content-box">
+            <h2>🎯 ClipGo Iframe 테스트</h2>
+            <div class="selectable-text">
+                이 텍스트는 iframe 내부에 있습니다. ClipGo 확장 프로그램이 iframe 내부의 콘텐츠에서도 텍스트 선택을 지원하는지 테스트할 수 있습니다.
+            </div>
+            <div class="selectable-text">
+                iframe은 웹 페이지 내에 다른 문서를 포함하는 강력한 기능입니다. <span class="highlight">동일 출처 정책</span>에 따라 접근이 제한될 수 있습니다.
+            </div>
+        </div>
+
+        <div class="info-panel">
+            <h3>📋 테스트 포인트</h3>
+            <div class="selectable-text">
+                <strong>기능 테스트:</strong>
+                <ul>
+                    <li>텍스트 드래그 선택</li>
+                    <li>ClipGo 팝업 표시</li>
+                    <li>카테고리 선택</li>
+                    <li>저장 기능</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="content-box">
+            <h3>💻 코드 예제</h3>
+            <div class="code-block">
+// iframe 내부 콘텐츠 감지
+function detectIframeContent() {
+    if (window.self !== window.top) {
+        console.log('이 페이지는 iframe 내부에 있습니다');
+        return true;
+    }
+    return false;
+}
+
+// 텍스트 선택 이벤트
+document.addEventListener('mouseup', function() {
+    const selection = window.getSelection();
+    if (selection.toString().length > 0) {
+        console.log('Iframe 내부 텍스트 선택됨');
+    }
+});
+            </div>
+        </div>
+
+        <div class="emoji-section">
+            <h3>🎨 다양한 콘텐츠 타입</h3>
+            <div class="emoji-grid">
+                <div class="emoji-item">📝</div>
+                <div class="emoji-item">🔧</div>
+                <div class="emoji-item">🎯</div>
+                <div class="emoji-item">🚀</div>
+                <div class="emoji-item">💡</div>
+                <div class="emoji-item">🔍</div>
+                <div class="emoji-item">📊</div>
+                <div class="emoji-item">🎨</div>
+            </div>
+        </div>
+
+        <div class="content-box">
+            <h3>🔍 기술적 세부사항</h3>
+            <div class="selectable-text">
+                iframe 내부에서의 텍스트 선택은 다음과 같은 기술적 고려사항이 있습니다:
+            </div>
+            <div class="selectable-text">
+                <strong>1. 동일 출처 정책:</strong> iframe과 부모 페이지가 동일한 도메인이어야 합니다.
+            </div>
+            <div class="selectable-text">
+                <strong>2. 콘텐츠 스크립트:</strong> 확장 프로그램의 콘텐츠 스크립트가 iframe 내부에도 주입되어야 합니다.
+            </div>
+            <div class="selectable-text">
+                <strong>3. 이벤트 전파:</strong> iframe 내부의 이벤트가 부모 페이지로 전파되어야 합니다.
+            </div>
+        </div>
+
+        <div class="footer">
+            <p>🔗 ClipGo Iframe 테스트 콘텐츠</p>
+            <p>이 페이지는 iframe 내부에서의 확장 프로그램 기능을 테스트하기 위해 만들어졌습니다.</p>
+        </div>
+    </div>
+
+    <script>
+        // iframe 내부에서의 이벤트 핸들러
+        document.addEventListener('mouseup', () => {
+            const selection = window.getSelection();
+            if (selection.toString().length > 0) {
+                console.log('Iframe 내부 텍스트 선택됨:', selection.toString().substring(0, 100));
+
+                // 부모 페이지로 이벤트 전송 (동일 출처인 경우)
+                if (window.parent && window.parent.postMessage) {
+                    window.parent.postMessage({
+                        type: 'iframeTextSelected',
+                        text: selection.toString(),
+                        source: 'iframe-inner-content'
+                    }, '*');
+                }
+            }
+        });
+
+        // iframe 로드 완료 시 부모 페이지에 알림
+        window.addEventListener('load', () => {
+            console.log('Iframe 내부 콘텐츠 로드 완료');
+
+            if (window.parent && window.parent.postMessage) {
+                window.parent.postMessage({
+                    type: 'iframeLoaded',
+                    source: 'iframe-inner-content'
+                }, '*');
+            }
+        });
+
+        // 메시지 수신 핸들러
+        window.addEventListener('message', (event) => {
+            if (event.data.type === 'requestIframeContent') {
+                event.source.postMessage({
+                    type: 'iframeContentResponse',
+                    content: document.body.innerHTML,
+                    source: 'iframe-inner-content'
+                }, event.origin);
+            }
+        });
+    </script>
+</body>
+</html>

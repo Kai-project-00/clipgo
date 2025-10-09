@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Claude Simulation - ClipGo Test</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 0;
+            padding: 0;
+            background: #ffffff;
+            color: #0f0f0f;
+        }
+        .claude-container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px;
+            min-height: 100vh;
+        }
+        .claude-header {
+            text-align: center;
+            padding: 30px 0;
+            border-bottom: 1px solid #e5e5e5;
+            margin-bottom: 30px;
+        }
+        .claude-header h1 {
+            color: #0f0f0f;
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 10px;
+        }
+        .claude-header p {
+            color: #666;
+            font-size: 1.1rem;
+        }
+        .claude-messages {
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+        .claude-message {
+            display: flex;
+            gap: 16px;
+            align-items: flex-start;
+            padding: 0 20px;
+        }
+        .claude-message.human {
+            flex-direction: row-reverse;
+        }
+        .claude-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 16px;
+            flex-shrink: 0;
+        }
+        .claude-message.human .claude-avatar {
+            background: #007bff;
+            color: white;
+        }
+        .claude-message.assistant .claude-avatar {
+            background: #ff6b35;
+            color: white;
+        }
+        .claude-content {
+            flex: 1;
+            max-width: 75%;
+        }
+        .claude-message.human .claude-content {
+            text-align: right;
+        }
+        .message-text {
+            background: #f8f9fa;
+            padding: 16px 20px;
+            border-radius: 12px;
+            border: 1px solid #e5e5e5;
+            line-height: 1.6;
+            font-size: 15px;
+        }
+        .claude-message.human .message-text {
+            background: #e3f2fd;
+            border: 1px solid #bbdefb;
+        }
+        .copy-button {
+            background: none;
+            border: none;
+            color: #666;
+            cursor: pointer;
+            padding: 6px 10px;
+            font-size: 13px;
+            margin-top: 10px;
+            border-radius: 6px;
+            transition: all 0.2s;
+        }
+        .copy-button:hover {
+            background: #f0f0f0;
+            color: #333;
+        }
+        .copy-button.copied {
+            color: #28a745;
+            background: #d4edda;
+        }
+        .timestamp {
+            font-size: 12px;
+            color: #999;
+            margin-top: 6px;
+        }
+        .claude-input-area {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: white;
+            border-top: 1px solid #e5e5e5;
+            padding: 20px;
+            max-width: 900px;
+            margin: 0 auto;
+            box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
+        }
+        .input-container {
+            display: flex;
+            gap: 12px;
+            align-items: flex-end;
+        }
+        .input-field {
+            flex: 1;
+            background: #f8f9fa;
+            border: 1px solid #e5e5e5;
+            border-radius: 8px;
+            padding: 12px 16px;
+            color: #0f0f0f;
+            font-size: 15px;
+            resize: none;
+            min-height: 48px;
+            max-height: 120px;
+        }
+        .input-field:focus {
+            outline: none;
+            border-color: #007bff;
+            background: white;
+        }
+        .send-button {
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 12px 24px;
+            cursor: pointer;
+            font-weight: 600;
+            height: 48px;
+            transition: background 0.2s;
+        }
+        .send-button:hover {
+            background: #0056b3;
+        }
+        .send-button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        pre {
+            background: #f8f9fa;
+            border: 1px solid #e5e5e5;
+            border-radius: 8px;
+            padding: 12px;
+            overflow-x: auto;
+            margin: 8px 0;
+        }
+        code {
+            background: #f1f3f4;
+            padding: 2px 4px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+        }
+    </style>
+</head>
+<body>
+    <div class="claude-container">
+        <div class="claude-header">
+            <h1>Claude Simulation</h1>
+            <p>ClipGo 확장 프로그램 테스트를 위한 Claude AI 인터페이스 시뮬레이션</p>
+        </div>
+
+        <div class="claude-messages">
+            <div class="claude-message human">
+                <div class="claude-avatar">H</div>
+                <div class="claude-content">
+                    <div class="message-text" selectable="true">
+                        머신러닝과 딥러닝의 차이점을 설명해줄 수 있나요?
+                    </div>
+                    <button class="copy-button" onclick="copyToClipboard(this)">복사</button>
+                    <div class="timestamp">오후 3:45</div>
+                </div>
+            </div>
+
+            <div class="claude-message assistant">
+                <div class="claude-avatar">C</div>
+                <div class="claude-content">
+                    <div class="message-text" selectable="true">
+                        머신러닝과 딥러닝은 관련되어 있지만 중요한 차이점이 있습니다.
+
+                        <strong>머신러닝</strong>은 컴퓨터가 데이터로부터 학습할 수 있게 하는 일반적인 기술 분야입니다. 알고리즘이 데이터 패턴을 인식하고 예측을 만들 수 있도록 훈련합니다.
+
+                        <strong>딥러닝</strong>은 신경망을 사용한 머신러닝의 하위 분야입니다. 가장 큰 특징은 자동 특징 추출로, 인간이 직접 특징을 설계할 필요 없이 알고리즘이 스스로 데이터에서 중요한 패턴을 학습합니다.
+                    </div>
+                    <button class="copy-button" onclick="copyToClipboard(this)">복사</button>
+                    <div class="timestamp">오후 3:45</div>
+                </div>
+            </div>
+
+            <div class="claude-message human">
+                <div class="claude-avatar">H</div>
+                <div class="claude-content">
+                    <div class="message-text" selectable="true">
+                        그렇다면 실제 적용 사례는 어떻게 되나요?
+                    </div>
+                    <button class="copy-button" onclick="copyToClipboard(this)">복사</button>
+                    <div class="timestamp">오후 3:46</div>
+                </div>
+            </div>
+
+            <div class="claude-message assistant">
+                <div class="claude-avatar">C</div>
+                <div class="claude-content">
+                    <div class="message-text" selectable="true">
+                        실제 적용 사례를 비교해보겠습니다:
+
+                        <strong>일반 머신러닝:</strong>
+                        - 이메일 스팸 필터링
+                        - 주식 시장 예측
+                        - 고객 이탈 예측
+                        - 의료 진단 보조
+
+                        <strong>딥러닝:</strong>
+                        - 이미지 인식 (얼굴 인식, 객체 탐지)
+                        - 자연어 처리 (번역, 챗봇)
+                        - 음성 인식 (Siri, Google Assistant)
+                        - 자율주행차
+
+                        딥러닝은 복잡한 패턴 인식이 필요한 대규모 데이터에 더 적합합니다.
+                    </div>
+                    <button class="copy-button" onclick="copyToClipboard(this)">복사</button>
+                    <div class="timestamp">오후 3:46</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 모의 Chrome API 로드 -->
+    <script src="test-mock-chrome-api.js"></script>
+
+    <!-- ClipGo 콘텐츠 스크립트 로드 -->
+    <script src="src/StorageManager.js"></script>
+    <script src="src/CategoryManager.js"></script>
+    <script src="src/ClipManager.js"></script>
+    <script src="content.js"></script>
+
+    <script>
+        function copyToClipboard(button) {
+            const messageText = button.parentElement.querySelector('.message-text');
+            const text = messageText.textContent;
+
+            navigator.clipboard.writeText(text).then(() => {
+                button.textContent = '복사됨';
+                button.classList.add('copied');
+
+                setTimeout(() => {
+                    button.textContent = '복사';
+                    button.classList.remove('copied');
+                }, 2000);
+            }).catch(err => {
+                console.error('복사 실패:', err);
+            });
+        }
+
+        // 드래그 선택 이벤트 핸들러
+        document.addEventListener('mouseup', () => {
+            const selection = window.getSelection();
+            if (selection.toString().length > 0) {
+                console.log('Claude 시뮬레이션 - 텍스트 선택됨:', selection.toString().substring(0, 100));
+            }
+        });
+
+        // 선택 텍스트 분석
+        document.addEventListener('mouseup', () => {
+            const selection = window.getSelection();
+            if (selection.toString().length > 10) {
+                const range = selection.getRangeAt(0);
+                const rect = range.getBoundingClientRect();
+
+                // 선택된 텍스트 주변에 UI 표시 (테스트용)
+                console.log('선택 위치:', {
+                    x: rect.left + rect.width / 2,
+                    y: rect.top,
+                    width: rect.width,
+                    height: rect.height
+                });
+            }
+        });
+    </script>
+</body>
+</html>

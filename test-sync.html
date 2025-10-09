@@ -1,0 +1,754 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>동기화 테스트</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .test-container {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .test-button {
+            background: #6c5ce7;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+            font-size: 14px;
+        }
+        .test-button:hover {
+            background: #5a4fd1;
+        }
+        .test-result {
+            background: #f8f9fa;
+            border-left: 4px solid #6c5ce7;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+        }
+        .test-result.success {
+            border-left-color: #00b894;
+        }
+        .test-result.error {
+            border-left-color: #d63031;
+        }
+        .sync-status {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 10px;
+            margin: 20px 0;
+        }
+        .status-card {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .status-card h3 {
+            margin: 0 0 10px 0;
+            color: #333;
+        }
+        .status-value {
+            font-size: 18px;
+            font-weight: bold;
+            color: #6c5ce7;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔄 드래그 팝업과 확장 프로그램 팝업 동기화 테스트</h1>
+
+    <div class="test-container">
+        <h2>테스트 시나리오</h2>
+        <p>이 테스트는 드래그 팝업에서 저장한 데이터가 확장 프로그램 팝업에 실시간으로 반영되는지 확인합니다.</p>
+
+        <button class="test-button" onclick="testStorageSync()">스토리지 동기화 테스트</button>
+        <button class="test-button" onclick="testDragPopupSync()">드래그 팝업 동기화 테스트</button>
+        <button class="test-button" onclick="testCrossContextEvents()">크로스 컨텍스트 이벤트 테스트</button>
+        <button class="test-button" onclick="testEventSystem()">이벤트 시스템 테스트</button>
+        <button class="test-button" onclick="testDataRefresh()">데이터 새로고침 테스트</button>
+        <button class="test-button" onclick="testCategoryManager()">CategoryManager 테스트</button>
+        <button class="test-button" onclick="testClipManager()">ClipManager 테스트</button>
+        <button class="test-button" onclick="testPopupLoading()">팝업 로딩 테스트</button>
+        <button class="test-button" onclick="testChromeStorage()">Chrome Storage 직접 확인</button>
+        <button class="test-button" onclick="createTestClip()">테스트 클립 생성</button>
+        <button class="test-button" onclick="clearTestData()">테스트 데이터 정리</button>
+    </div>
+
+    <div class="test-container">
+        <h2>동기화 상태</h2>
+        <div class="sync-status" id="syncStatus">
+            <div class="status-card">
+                <h3>클립 수</h3>
+                <div class="status-value" id="clipCount">로딩 중...</div>
+            </div>
+            <div class="status-card">
+                <h3>카테고리 수</h3>
+                <div class="status-value" id="categoryCount">로딩 중...</div>
+            </div>
+            <div class="status-card">
+                <h3>마지막 동기화</h3>
+                <div class="status-value" id="lastSync">로딩 중...</div>
+            </div>
+            <div class="status-card">
+                <h3>이벤트 리스너</h3>
+                <div class="status-value" id="eventListeners">로딩 중...</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="test-container">
+        <h2>테스트 결과</h2>
+        <div id="testResults"></div>
+    </div>
+
+    <script>
+        let testResults = [];
+
+        // 테스트 결과 표시
+        function addTestResult(message, type = 'info') {
+            const resultDiv = document.createElement('div');
+            resultDiv.className = `test-result ${type}`;
+            resultDiv.innerHTML = `
+                <strong>${new Date().toLocaleTimeString()}</strong><br>
+                ${message}
+            `;
+
+            const resultsContainer = document.getElementById('testResults');
+            resultsContainer.insertBefore(resultDiv, resultsContainer.firstChild);
+
+            // 결과 저장
+            testResults.push({ message, type, timestamp: Date.now() });
+        }
+
+        // 동기화 상태 업데이트
+        async function updateSyncStatus() {
+            try {
+                if (typeof chrome !== 'undefined' && chrome.runtime) {
+                    // 확장 프로그램 환경에서 백그라운드 스크립트에 상태 요청
+                    const response = await chrome.runtime.sendMessage({ action: 'getSyncStatus' });
+
+                    if (response && response.success) {
+                        const status = response.data;
+                        document.getElementById('clipCount').textContent = status.clips?.length || 0;
+                        document.getElementById('categoryCount').textContent = status.categories?.length || 0;
+                        document.getElementById('lastSync').textContent = status.lastSync ? new Date(status.lastSync).toLocaleTimeString() : '없음';
+                        document.getElementById('eventListeners').textContent = status.eventListeners || 0;
+                    }
+                } else {
+                    // 일반 웹 페이지 환경에서는 localStorage 확인
+                    const clips = JSON.parse(localStorage.getItem('clips') || '[]');
+                    const categories = JSON.parse(localStorage.getItem('categories') || '[]');
+
+                    document.getElementById('clipCount').textContent = clips.length;
+                    document.getElementById('categoryCount').textContent = categories.length;
+                    document.getElementById('lastSync').textContent = '테스트 환경';
+                    document.getElementById('eventListeners').textContent = '시뮬레이션';
+                }
+            } catch (error) {
+                addTestResult(`상태 업데이트 실패: ${error.message}`, 'error');
+            }
+        }
+
+        // 스토리지 동기화 테스트
+        async function testStorageSync() {
+            addTestResult('🔄 스토리지 동기화 테스트 시작...');
+
+            try {
+                // 테스트 데이터 생성
+                const testClip = {
+                    id: 'test_clip_' + Date.now(),
+                    title: '동기화 테스트 클립',
+                    text: '이것은 동기화 테스트를 위한 클립입니다.',
+                    source: 'test',
+                    createdAt: Date.now(),
+                    updatedAt: Date.now()
+                };
+
+                // 로컬 스토리지에 저장
+                const clips = JSON.parse(localStorage.getItem('clips') || '[]');
+                clips.push(testClip);
+                localStorage.setItem('clips', JSON.stringify(clips));
+
+                addTestResult('✅ 테스트 클립 저장 성공', 'success');
+
+                // 상태 업데이트 대기
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                await updateSyncStatus();
+
+                // 데이터 확인
+                const updatedClips = JSON.parse(localStorage.getItem('clips') || '[]');
+                const savedClip = updatedClips.find(c => c.id === testClip.id);
+
+                if (savedClip) {
+                    addTestResult('✅ 데이터 저장 및 읽기 동기화 성공', 'success');
+                } else {
+                    addTestResult('❌ 데이터 동기화 실패', 'error');
+                }
+
+            } catch (error) {
+                addTestResult(`❌ 스토리지 동기화 테스트 실패: ${error.message}`, 'error');
+            }
+        }
+
+        // 드래그 팝업 동기화 테스트 (새로운 실패 테스트)
+        async function testDragPopupSync() {
+            addTestResult('🔄 드래그 팝업 동기화 테스트 시작...');
+
+            try {
+                if (typeof chrome !== 'undefined' && chrome.runtime) {
+                    addTestResult('🔍 드래그 팝업 시뮬레이션 테스트 시작...');
+
+                    // 1. 드래그 팝업에서 클립 저장 시뮬레이션
+                    const dragPopupClip = {
+                        id: 'drag_test_' + Date.now(),
+                        title: '드래그 팝업에서 저장',
+                        text: '드래그 팝업을 통해 저장된 테스트 클립입니다.',
+                        source: 'chatgpt',
+                        categoryIds: [],
+                        tags: ['테스트', '드래그'],
+                        createdAt: Date.now(),
+                        url: 'https://chat.openai.com/test'
+                    };
+
+                    // 백그라운드 스크립트에 저장 요청 (드래그 팝업 시뮬레이션)
+                    const saveResponse = await chrome.runtime.sendMessage({
+                        action: 'saveClipFromSelection',
+                        data: dragPopupClip
+                    });
+
+                    addTestResult(`📝 드래그 팝업 저장 요청: ${saveResponse?.success ? '성공' : '실패'}`);
+
+                    // 2. 저장 확인을 위한 대기
+                    await new Promise(resolve => setTimeout(resolve, 2000));
+
+                    // 3. 확장 프로그램 팝업에서 데이터 가져오기
+                    const getClipsResponse = await chrome.runtime.sendMessage({
+                        action: 'getClips'
+                    });
+
+                    addTestResult(`📊 확장 프로그램 팝업 데이터 요청: ${getClipsResponse?.success ? '성공' : '실패'}`);
+
+                    // 4. 동기화 확인
+                    if (getClipsResponse?.success && getClipsResponse.data) {
+                        const clips = getClipsResponse.data;
+                        const savedClip = clips.find(c => c.id === dragPopupClip.id);
+
+                        if (savedClip) {
+                            addTestResult('✅ 드래그 팝업 ↔ 확장 프로그램 팝업 동기화 성공', 'success');
+                        } else {
+                            addTestResult('❌ 동기화 실패: 드래그 팝업에서 저장한 클립을 찾을 수 없음', 'error');
+                            addTestResult(`💡 현재 클립 수: ${clips.length}`, 'info');
+                        }
+                    } else {
+                        addTestResult('❌ 확장 프로그램 팝업 데이터 가져오기 실패', 'error');
+                    }
+
+                    // 5. 스토리지 변경 이벤트 브로드캐스트 테스트
+                    addTestResult('📡 스토리지 변경 이벤트 브로드캐스트 테스트...');
+
+                    const broadcastResponse = await chrome.runtime.sendMessage({
+                        action: 'testStorageBroadcast'
+                    });
+
+                    if (broadcastResponse?.success) {
+                        addTestResult('✅ 스토리지 변경 이벤트 브로드캐스트 성공', 'success');
+                    } else {
+                        addTestResult('❌ 스토리지 변경 이벤트 브로드캐스트 실패', 'error');
+                        addTestResult('💡 이것이 동기화 문제의 근본 원인일 수 있습니다', 'info');
+                    }
+
+                } else {
+                    addTestResult('⚠️ 확장 프로그램 환경이 아님 - 테스트 시뮬레이션', 'error');
+
+                    // 시뮬레이션: 실패 시나리오 표시
+                    setTimeout(() => {
+                        addTestResult('❌ (시뮬레이션) 드래그 팝업 저장 성공', 'info');
+                        addTestResult('❌ (시뮬레이션) 확장 프로그램 팝업에 데이터 없음', 'error');
+                        addTestResult('💡 (시뮬레이션) 스토리지 이벤트 브로드캐스트 실패', 'info');
+                        addTestResult('🎯 (시뮬레이션) 이것이 우리가 해결해야 할 문제입니다', 'info');
+                    }, 1000);
+                }
+
+            } catch (error) {
+                addTestResult(`❌ 드래그 팝업 동기화 테스트 실패: ${error.message}`, 'error');
+                addTestResult('💡 오류 자체가 동기화 문제를 나타낼 수 있습니다', 'info');
+            }
+        }
+
+        // 크로스 컨텍스트 이벤트 테스트
+        async function testCrossContextEvents() {
+            addTestResult('🔄 크로스 컨텍스트 이벤트 테스트 시작...');
+
+            try {
+                if (typeof chrome !== 'undefined' && chrome.runtime) {
+                    let eventReceived = false;
+                    let eventData = null;
+
+                    // 스토리지 변경 이벤트 리스너 설정
+                    const listener = (message, sender, sendResponse) => {
+                        if (message.type === 'STORAGE_CHANGE') {
+                            eventReceived = true;
+                            eventData = message.data;
+                            addTestResult('✅ 스토리지 변경 이벤트 수신', 'success');
+                        }
+                    };
+
+                    chrome.runtime.onMessage.addListener(listener);
+
+                    // 이벤트 발생 테스트
+                    await chrome.runtime.sendMessage({
+                        action: 'triggerStorageChange',
+                        data: { test: 'cross_context_event' }
+                    });
+
+                    // 이벤트 수신 대기
+                    await new Promise(resolve => setTimeout(resolve, 1000));
+
+                    if (eventReceived) {
+                        addTestResult('✅ 크로스 컨텍스트 이벤트 통신 성공', 'success');
+                    } else {
+                        addTestResult('❌ 크로스 컨텍스트 이벤트 수신 실패', 'error');
+                        addTestResult('💡 이벤트 브로드캐스트 메커니즘에 문제가 있습니다', 'info');
+                    }
+
+                    // 리스너 정리
+                    chrome.runtime.onMessage.removeListener(listener);
+
+                } else {
+                    addTestResult('⚠️ 테스트 환경에서 크로스 컨텍스트 이벤트 테스트 불가', 'error');
+                }
+
+            } catch (error) {
+                addTestResult(`❌ 크로스 컨텍스트 이벤트 테스트 실패: ${error.message}`, 'error');
+            }
+        }
+
+        // 이벤트 시스템 테스트
+        async function testEventSystem() {
+            addTestResult('🔄 이벤트 시스템 테스트 시작...');
+
+            try {
+                if (typeof StorageManager !== 'undefined') {
+                    const storageManager = new StorageManager();
+
+                    // 이벤트 리스너 등록
+                    let eventReceived = false;
+
+                    storageManager.addEventListener('clipCreated', (data) => {
+                        eventReceived = true;
+                        addTestResult(`✅ 클립 생성 이벤트 수신: ${data.clip.title}`, 'success');
+                    });
+
+                    storageManager.addEventListener('storageChanged', (data) => {
+                        addTestResult(`✅ 스토리지 변경 이벤트 수신: ${data.key}`, 'success');
+                    });
+
+                    addTestResult('✅ 이벤트 리스너 등록 성공', 'success');
+
+                    // 테스트를 위한 클립 생성
+                    await storageManager.createClip({
+                        title: '이벤트 테스트 클립',
+                        text: '이벤트 시스템 테스트를 위한 클립입니다.',
+                        source: 'test'
+                    });
+
+                    // 이벤트 수신 대기
+                    await new Promise(resolve => setTimeout(resolve, 500));
+
+                    if (eventReceived) {
+                        addTestResult('✅ 이벤트 시스템 동작 정상', 'success');
+                    } else {
+                        addTestResult('⚠️ 이벤트 수신 시간 초과', 'error');
+                    }
+
+                } else {
+                    addTestResult('⚠️ StorageManager를 찾을 수 없음. 테스트 환경에서 시뮬레이션합니다.', 'error');
+
+                    // 시뮬레이션
+                    setTimeout(() => {
+                        addTestResult('✅ (시뮬레이션) 이벤트 수신: clipCreated', 'success');
+                        addTestResult('✅ (시뮬레이션) 이벤트 수신: storageChanged', 'success');
+                    }, 300);
+                }
+
+            } catch (error) {
+                addTestResult(`❌ 이벤트 시스템 테스트 실패: ${error.message}`, 'error');
+            }
+        }
+
+        // 데이터 새로고침 테스트
+        async function testDataRefresh() {
+            addTestResult('🔄 데이터 새로고침 테스트 시작...');
+
+            try {
+                if (typeof chrome !== 'undefined' && chrome.runtime) {
+                    const response = await chrome.runtime.sendMessage({ action: 'refreshData' });
+
+                    if (response && response.success) {
+                        const { clips, categories } = response.data;
+                        addTestResult(`✅ 데이터 새로고침 성공: ${clips.length} 클립, ${categories.length} 카테고리`, 'success');
+                    } else {
+                        addTestResult('❌ 데이터 새로고침 실패', 'error');
+                    }
+                } else {
+                    addTestResult('⚠️ 테스트 환경에서 시뮬레이션합니다.', 'error');
+
+                    // 시뮬레이션
+                    setTimeout(() => {
+                        addTestResult('✅ (시뮬레이션) 데이터 새로고침 완료', 'success');
+                        updateSyncStatus();
+                    }, 500);
+                }
+
+            } catch (error) {
+                addTestResult(`❌ 데이터 새로고침 테스트 실패: ${error.message}`, 'error');
+            }
+        }
+
+        // 테스트 클립 생성
+        async function createTestClip() {
+            addTestResult('🔄 테스트 클립 생성...');
+
+            try {
+                const testClip = {
+                    id: 'manual_test_' + Date.now(),
+                    title: '수동 테스트 클립',
+                    text: '사용자가 수동으로 생성한 테스트 클립입니다.',
+                    source: 'manual_test',
+                    createdAt: Date.now(),
+                    updatedAt: Date.now()
+                };
+
+                const clips = JSON.parse(localStorage.getItem('clips') || '[]');
+                clips.push(testClip);
+                localStorage.setItem('clips', JSON.stringify(clips));
+
+                addTestResult(`✅ 테스트 클립 생성 성공: ${testClip.title}`, 'success');
+
+                // 상태 업데이트
+                setTimeout(updateSyncStatus, 300);
+
+            } catch (error) {
+                addTestResult(`❌ 테스트 클립 생성 실패: ${error.message}`, 'error');
+            }
+        }
+
+        // CategoryManager 테스트
+        async function testCategoryManager() {
+            addTestResult('🔄 CategoryManager getAllCategories() 테스트 시작...');
+
+            try {
+                if (typeof chrome !== 'undefined' && chrome.runtime) {
+                    // 1. CategoryManager 인스턴스 생성 시도
+                    addTestResult('🔍 CategoryManager 인스턴스 생성 테스트...');
+
+                    const response = await chrome.runtime.sendMessage({
+                        action: 'testCategoryManager'
+                    });
+
+                    if (response && response.success) {
+                        addTestResult('✅ CategoryManager 인스턴스 생성 성공', 'success');
+
+                        // 2. getAllCategories() 메서드 호출 테스트
+                        addTestResult('🔍 getAllCategories() 메서드 호출 테스트...');
+
+                        const getAllResponse = await chrome.runtime.sendMessage({
+                            action: 'testGetAllCategories'
+                        });
+
+                        if (getAllResponse && getAllResponse.success) {
+                            addTestResult(`✅ getAllCategories() 성공: ${getAllResponse.data.length}개 카테고리`, 'success');
+                        } else {
+                            addTestResult(`❌ getAllCategories() 실패: ${getAllResponse?.error || '메서드 없음'}`, 'error');
+                            addTestResult('💡 이것이 "getAllCategories is not a function" 오류의 근본 원인입니다', 'info');
+                        }
+                    } else {
+                        addTestResult(`❌ CategoryManager 인스턴스 생성 실패: ${response?.error || '알 수 없는 오류'}`, 'error');
+                    }
+
+                    // 3. 팝업에서 카테고리 로딩 테스트
+                    addTestResult('🔍 팝업 카테고리 로딩 테스트...');
+
+                    const popupResponse = await chrome.runtime.sendMessage({
+                        action: 'testPopupCategoryLoading'
+                    });
+
+                    if (popupResponse && popupResponse.success) {
+                        addTestResult(`✅ 팝업 카테고리 로딩 성공: ${popupResponse.data.length}개 카테고리`, 'success');
+                    } else {
+                        addTestResult(`❌ 팝업 카테고리 로딩 실패: ${popupResponse?.error || '알 수 없는 오류'}`, 'error');
+                    }
+
+                } else {
+                    addTestResult('⚠️ 테스트 환경에서 CategoryManager 시뮬레이션 테스트', 'error');
+
+                    // 시뮬레이션: 실패 시나리오 표시
+                    setTimeout(() => {
+                        addTestResult('❌ (시뮬레이션) CategoryManager.getAllCategories is not a function', 'error');
+                        addTestResult('💡 (시뮬레이션) popup.js:207에서 호출되는 메서드 누락', 'info');
+                        addTestResult('🎯 (시뮬레이션) CategoryManager.js에 getAllCategories() 메서드 추가 필요', 'info');
+                    }, 1000);
+                }
+
+            } catch (error) {
+                addTestResult(`❌ CategoryManager 테스트 실패: ${error.message}`, 'error');
+            }
+        }
+
+        // ClipManager 테스트
+        async function testClipManager() {
+            addTestResult('🔄 ClipManager getAllClips() 테스트 시작...');
+
+            try {
+                if (typeof chrome !== 'undefined' && chrome.runtime) {
+                    // 1. ClipManager 인스턴스 생성 시도
+                    addTestResult('🔍 ClipManager 인스턴스 생성 테스트...');
+
+                    const response = await chrome.runtime.sendMessage({
+                        action: 'testClipManager'
+                    });
+
+                    if (response && response.success) {
+                        addTestResult('✅ ClipManager 인스턴스 생성 성공', 'success');
+
+                        // 2. getAllClips() 메서드 호출 테스트
+                        addTestResult('🔍 getAllClips() 메서드 호출 테스트...');
+
+                        const getAllResponse = await chrome.runtime.sendMessage({
+                            action: 'testGetAllClips'
+                        });
+
+                        if (getAllResponse && getAllResponse.success) {
+                            addTestResult(`✅ getAllClips() 성공: ${getAllResponse.data.length}개 클립`, 'success');
+                        } else {
+                            addTestResult(`❌ getAllClips() 실패: ${getAllResponse?.error || '메서드 없음'}`, 'error');
+                            addTestResult('💡 이것이 "getAllClips is not a function" 오류의 근본 원인입니다', 'info');
+                        }
+
+                        // 3. 기존 getClips() 메서드와 비교
+                        addTestResult('🔍 getClips() 메서드 비교 테스트...');
+
+                        const getResponse = await chrome.runtime.sendMessage({
+                            action: 'testGetClips'
+                        });
+
+                        if (getResponse && getResponse.success) {
+                            addTestResult(`✅ getClips() 성공: ${getResponse.data.length}개 클립`, 'success');
+                            addTestResult('💡 getClips()는 존재하지만 getAllClips()가 누락되었습니다', 'info');
+                        } else {
+                            addTestResult(`❌ getClips() 실패: ${getResponse?.error || '알 수 없는 오류'}`, 'error');
+                        }
+
+                    } else {
+                        addTestResult(`❌ ClipManager 인스턴스 생성 실패: ${response?.error || '알 수 없는 오류'}`, 'error');
+                    }
+
+                } else {
+                    addTestResult('⚠️ 테스트 환경에서 ClipManager 시뮬레이션 테스트', 'error');
+
+                    // 시뮬레이션: 실패 시나리오 표시
+                    setTimeout(() => {
+                        addTestResult('❌ (시뮬레이션) ClipManager.getAllClips is not a function', 'error');
+                        addTestResult('💡 (시뮬레이션) popup.js:191, 338에서 호출되는 메서드 누락', 'info');
+                        addTestResult('🎯 (시뮬레이션) ClipManager.js에 getAllClips() 메서드 추가 필요', 'info');
+                        addTestResult('🔄 (시뮬레이션) CategoryManager.getAllCategories() 패턴과 일관성 필요', 'info');
+                    }, 1000);
+                }
+
+            } catch (error) {
+                addTestResult(`❌ ClipManager 테스트 실패: ${error.message}`, 'error');
+            }
+        }
+
+        // 팝업 로딩 테스트
+        async function testPopupLoading() {
+            addTestResult('🔄 팝업 로딩 테스트 시작...');
+
+            try {
+                if (typeof chrome !== 'undefined' && chrome.runtime) {
+                    // 팝업 로딩 시뮬레이션
+                    addTestResult('🔍 팝업 초기화 로딩 테스트...');
+
+                    const popupResponse = await chrome.runtime.sendMessage({
+                        action: 'testPopupInitialization'
+                    });
+
+                    if (popupResponse && popupResponse.success) {
+                        addTestResult('✅ 팝업 초기화 성공', 'success');
+
+                        // 카테고리 로딩 테스트
+                        if (popupResponse.data.categories) {
+                            addTestResult(`✅ 카테고리 로딩 성공: ${popupResponse.data.categories.length}개`, 'success');
+                        } else {
+                            addTestResult('❌ 카테고리 로딩 실패', 'error');
+                        }
+
+                        // 클립 로딩 테스트
+                        if (popupResponse.data.clips) {
+                            addTestResult(`✅ 클립 로딩 성공: ${popupResponse.data.clips.length}개`, 'success');
+                        } else {
+                            addTestResult('❌ 클립 로딩 실패: getAllClips() is not a function', 'error');
+                        }
+                    } else {
+                        addTestResult(`❌ 팝업 초기화 실패: ${popupResponse?.error || '알 수 없는 오류'}`, 'error');
+                    }
+
+                } else {
+                    addTestResult('⚠️ 테스트 환경에서 팝업 로딩 시뮬레이션', 'error');
+
+                    setTimeout(() => {
+                        addTestResult('❌ (시뮬레이션) 팝업 로딩 실패: Error loading data', 'error');
+                        addTestResult('💡 (시뮬레이션) this.clipManager.getAllClips is not a function', 'error');
+                        addTestResult('🎯 (시뮬레이션) 북마크툴바에서 팝업 열 때 발생하는 오류', 'info');
+                    }, 1000);
+                }
+
+            } catch (error) {
+                addTestResult(`❌ 팝업 로딩 테스트 실패: ${error.message}`, 'error');
+            }
+        }
+
+        // Chrome Storage 직접 확인 테스트
+        async function testChromeStorage() {
+            addTestResult('🔄 Chrome Storage 직접 확인 테스트 시작...');
+
+            try {
+                if (typeof chrome !== 'undefined' && chrome.storage) {
+                    // 1. clips 데이터 직접 확인
+                    addTestResult('🔍 Chrome storage에서 clips 데이터 확인...');
+
+                    const result = await chrome.storage.local.get(['clips']);
+                    const clips = result.clips || [];
+
+                    addTestResult(`📊 Storage에 저장된 클립 수: ${clips.length}`, 'info');
+
+                    if (clips.length > 0) {
+                        addTestResult(`✅ 클립 데이터 있음: ${clips.length}개`, 'success');
+
+                        // 첫 번째 클립 정보 표시
+                        const firstClip = clips[0];
+                        addTestResult(`📋 첫 클립: "${firstClip.title || firstClip.text?.substring(0, 50)}..."`, 'info');
+                        addTestResult(`🕒 생성 시간: ${new Date(firstClip.createdAt).toLocaleString()}`, 'info');
+                    } else {
+                        addTestResult('⚠️ Storage에 클립 데이터 없음', 'error');
+                    }
+
+                    // 2. categories 데이터 확인
+                    const categoryResult = await chrome.storage.local.get(['categories']);
+                    const categories = categoryResult.categories || [];
+
+                    addTestResult(`📁 Storage에 저장된 카테고리 수: ${categories.length}`, 'info');
+
+                    if (categories.length > 0) {
+                        addTestResult(`✅ 카테고리 데이터 있음: ${categories.length}개`, 'success');
+                        categories.forEach(cat => {
+                            addTestResult(`📂 ${cat.name} (ID: ${cat.id})`, 'info');
+                        });
+                    } else {
+                        addTestResult('⚠️ Storage에 카테고리 데이터 없음', 'error');
+                    }
+
+                    // 3. 테스트 클립 생성
+                    addTestResult('🔄 테스트 클립 생성 시작...');
+
+                    const testClip = {
+                        id: 'storage_test_' + Date.now(),
+                        title: 'Storage Test Clip',
+                        text: '이 클립은 Chrome Storage 테스트를 위해 생성되었습니다.',
+                        source: 'storage_test',
+                        createdAt: Date.now(),
+                        updatedAt: Date.now(),
+                        categoryIds: []
+                    };
+
+                    // Storage에 직접 저장
+                    const allClips = [...clips, testClip];
+                    await chrome.storage.local.set({ clips: allClips });
+
+                    addTestResult(`✅ 테스트 클립 저장 성공 (ID: ${testClip.id})`, 'success');
+
+                    // 4. 저장 확인
+                    const verifyResult = await chrome.storage.local.get(['clips']);
+                    const verifyClips = verifyResult.clips || [];
+                    const savedClip = verifyClips.find(c => c.id === testClip.id);
+
+                    if (savedClip) {
+                        addTestResult('✅ 테스트 클립 저장 확인 성공', 'success');
+                    } else {
+                        addTestResult('❌ 테스트 클립 저장 확인 실패', 'error');
+                    }
+
+                } else {
+                    addTestResult('❌ Chrome storage API 사용 불가', 'error');
+                }
+
+            } catch (error) {
+                addTestResult(`❌ Chrome Storage 테스트 실패: ${error.message}`, 'error');
+            }
+        }
+
+        // 테스트 데이터 정리
+        async function clearTestData() {
+            addTestResult('🔄 테스트 데이터 정리...');
+
+            try {
+                const clips = JSON.parse(localStorage.getItem('clips') || '[]');
+                const testClips = clips.filter(clip =>
+                    clip.id.includes('test') ||
+                    clip.id.includes('manual_test') ||
+                    clip.source === 'test' ||
+                    clip.source === 'manual_test'
+                );
+
+                const cleanedClips = clips.filter(clip =>
+                    !clip.id.includes('test') &&
+                    !clip.id.includes('manual_test') &&
+                    clip.source !== 'test' &&
+                    clip.source !== 'manual_test'
+                );
+
+                localStorage.setItem('clips', JSON.stringify(cleanedClips));
+
+                addTestResult(`✅ 테스트 데이터 정리 완료: ${testClips.length}개 항목 삭제`, 'success');
+
+                // 상태 업데이트
+                setTimeout(updateSyncStatus, 300);
+
+            } catch (error) {
+                addTestResult(`❌ 테스트 데이터 정리 실패: ${error.message}`, 'error');
+            }
+        }
+
+        // 페이지 로드 시 초기화
+        document.addEventListener('DOMContentLoaded', () => {
+            addTestResult('🔄 동기화 테스트 페이지 로드 완료', 'info');
+            updateSyncStatus();
+
+            // 5초마다 상태 자동 업데이트
+            setInterval(updateSyncStatus, 5000);
+        });
+
+        // 스토리지 변경 감지 (실제 동기화 테스트)
+        if (typeof window !== 'undefined') {
+            window.addEventListener('storage', (e) => {
+                addTestResult(`🔄 스토리지 변경 감지: ${e.key}`, 'info');
+                updateSyncStatus();
+            });
+        }
+    </script>
+</body>
+</html>

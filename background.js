@@ -1,18 +1,27 @@
 // background.js - Service worker for context menu and background tasks
+importScripts('src/StorageManager.js', 'src/CategoryManager.js', 'src/ClipManager.js');
 
 class BackgroundService {
   constructor() {
     this.storageManager = null;
+    this.categoryManager = null;
+    this.clipManager = null;
     this.init();
   }
 
   async init() {
     try {
-      // Initialize StorageManager
-      if (typeof StorageManager !== 'undefined') {
-        this.storageManager = new StorageManager();
-        await this.storageManager.init();
-      }
+      console.log('🎯 FULL BACKGROUND SCRIPT LOADED!');
+
+      // Initialize managers
+      this.storageManager = new StorageManager();
+      await this.storageManager.init();
+
+      this.categoryManager = new CategoryManager(this.storageManager);
+      await this.categoryManager.init();
+
+      this.clipManager = new ClipManager(this.storageManager, this.categoryManager);
+      await this.clipManager.init();
 
       // Set up context menu
       this.setupContextMenu();
@@ -23,333 +32,123 @@ class BackgroundService {
       // Set up keyboard shortcuts
       this.setupKeyboardShortcuts();
 
-      // Set up storage listeners
-      this.setupStorageListeners();
+      console.log('✅ Full background script initialized successfully');
     } catch (error) {
-      console.error('Background service initialization failed:', error);
+      console.error('❌ Background script initialization failed:', error);
     }
   }
 
   setupContextMenu() {
-    // Create context menu item for saving clips
-    chrome.contextMenus.create({
-      id: 'save-clip',
-      title: '텍스트를 클립으로 저장',
-      contexts: ['selection']
-    });
+    try {
+      chrome.contextMenus.create({
+        id: 'save-clip',
+        title: 'ClipGo로 저장',
+        contexts: ['selection']
+      });
 
-    // Create context menu for saving with category
-    chrome.contextMenus.create({
-      id: 'save-clip-with-category',
-      title: '카테고리와 함께 클립 저장',
-      contexts: ['selection']
-    });
+      chrome.contextMenus.create({
+        id: 'save-with-category',
+        title: 'ClipGo로 카테고리와 함께 저장',
+        contexts: ['selection']
+      });
 
-    // Handle context menu clicks
-    chrome.contextMenus.onClicked.addListener((info, tab) => {
-      if (info.menuItemId === 'save-clip' || info.menuItemId === 'save-clip-with-category') {
-        this.handleContextMenuAction(info, tab);
-      }
-    });
+      chrome.contextMenus.onClicked.addListener((info, tab) => {
+        if (info.menuItemId === 'save-clip') {
+          this.handleSaveClip(info.selectionText, tab);
+        } else if (info.menuItemId === 'save-with-category') {
+          this.handleSaveClipWithCategory(info.selectionText, tab);
+        }
+      });
+    } catch (error) {
+      console.error('Context menu setup failed:', error);
+    }
   }
 
   setupMessageListeners() {
     chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-      switch (request.action) {
-        case 'saveClipFromSelection':
-          this.handleSaveClipFromSelection(request, sender);
-          sendResponse({ success: true });
-          break;
+      console.log('Background received message:', request);
 
-        case 'getCategories':
-          this.getCategories().then(categories => {
-            sendResponse({ categories });
-          });
-          return true; // Indicates async response
+      if (request.action === 'saveClip') {
+        this.handleSaveClip(request.data.text, request.data.tab)
+          .then(result => sendResponse({ success: true, result }))
+          .catch(error => sendResponse({ success: false, error: error.message }));
+        return true; // Async response
+      }
 
-        case 'saveClip':
-          this.saveClip(request.clip).then(() => {
-            sendResponse({ success: true });
-          }).catch(error => {
-            sendResponse({ success: false, error: error.message });
-          });
-          return true;
+      if (request.action === 'getCategories') {
+        this.categoryManager.getAllCategories()
+          .then(categories => sendResponse({ success: true, categories }))
+          .catch(error => sendResponse({ success: false, error: error.message }));
+        return true;
+      }
 
-        case 'updateClip':
-          this.updateClip(request.clipId, request.updates).then(() => {
-            sendResponse({ success: true });
-          }).catch(error => {
-            sendResponse({ success: false, error: error.message });
-          });
-          return true;
-
-        case 'deleteClip':
-          this.deleteClip(request.clipId).then(() => {
-            sendResponse({ success: true });
-          }).catch(error => {
-            sendResponse({ success: false, error: error.message });
-          });
-          return true;
-
-        case 'getClips':
-          this.getClips(request.filters).then(clips => {
-            sendResponse({ clips });
-          });
-          return true;
+      if (request.action === 'test') {
+        sendResponse({ status: 'ok' });
       }
     });
   }
 
   setupKeyboardShortcuts() {
-    // Keyboard shortcuts are handled by the manifest commands
-    // This listener handles the command events
     chrome.commands.onCommand.addListener((command) => {
       if (command === 'save-clip') {
-        this.handleKeyboardShortcut();
-      }
-    });
-  }
-
-  setupStorageListeners() {
-    chrome.storage.onChanged.addListener((changes, areaName) => {
-      if (areaName === 'local') {
-        // Handle storage changes if needed
-        console.log('Storage changed:', changes);
-      }
-    });
-  }
-
-  async handleContextMenuAction(info, tab) {
-    const selectedText = info.selectionText.trim();
-    if (!selectedText) return;
-
-    try {
-      const clip = {
-        id: Date.now().toString(),
-        text: selectedText,
-        title: this.generateTitle(selectedText),
-        tags: [],
-        categoryIds: [],
-        url: tab.url,
-        source: this.getSourceFromUrl(tab.url),
-        createdAt: Date.now()
-      };
-
-      // Save the clip
-      await this.saveClip(clip);
-
-      // Show notification
-      this.showNotification('클립 저장 완료', `'${clip.title}'이 저장되었습니다`);
-
-      // If it's the "save with category" action, open popup
-      if (info.menuItemId === 'save-clip-with-category') {
-        chrome.action.openPopup();
-      }
-    } catch (error) {
-      console.error('Error saving clip from context menu:', error);
-      this.showNotification('저장 오류', '클립 저장 중 오류가 발생했습니다');
-    }
-  }
-
-  async handleSaveClipFromSelection(request, sender) {
-    try {
-      // clipOptions이 있는 경우 해당 정보 사용
-      const clipTitle = request.clipOptions?.title || this.generateTitle(request.text);
-      const clipCategoryIds = request.clipOptions?.categoryIds || [];
-
-      const clip = {
-        id: Date.now().toString(),
-        text: request.text,
-        title: clipTitle,
-        tags: [],
-        categoryIds: clipCategoryIds,
-        url: request.url,
-        source: this.getSourceFromUrl(request.url),
-        createdAt: Date.now()
-      };
-
-      await this.saveClip(clip);
-      console.log('✅ 클립 저장 성공:', clip);
-
-      // chrome.action.openPopup() 제거 - 팝업을 강제로 열지 않음
-    } catch (error) {
-      console.error('Error saving clip from selection:', error);
-      throw error; // 에러를 호출자에게 전달
-    }
-  }
-
-  handleKeyboardShortcut() {
-    // Handle Ctrl+Shift+S or Cmd+Shift+S
-    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-      if (tabs[0]) {
-        chrome.scripting.executeScript({
-          target: { tabId: tabs[0].id },
-          function: () => {
-            const selection = window.getSelection();
-            return selection ? selection.toString().trim() : '';
-          }
-        }, (results) => {
-          if (results && results[0] && results[0].result) {
-            this.handleSaveClipFromSelection({
-              text: results[0].result,
-              url: tabs[0].url,
-              title: tabs[0].title
-            });
+        chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+          if (tabs[0]) {
+            chrome.tabs.sendMessage(tabs[0].id, { action: 'saveSelectedText' });
           }
         });
       }
     });
   }
 
-  generateTitle(text) {
-    if (text.length <= 50) {
-      return text;
+  async handleSaveClip(selectedText, tab) {
+    if (!selectedText || selectedText.trim().length === 0) {
+      throw new Error('선택된 텍스트가 없습니다');
     }
-    return text.substring(0, 47) + '...';
+
+    const clipData = {
+      id: Date.now().toString(),
+      text: selectedText.trim(),
+      url: tab.url,
+      title: tab.title || 'Untitled',
+      category: '기본',
+      tags: [],
+      createdAt: new Date().toISOString()
+    };
+
+    await this.clipManager.addClip(clipData);
+
+    // Broadcast storage change
+    await this.broadcastStorageChange('clips', { added: [clipData] });
+
+    return clipData;
   }
 
-  getSourceFromUrl(url) {
-    if (!url) return 'other';
-    if (url.includes('chat.openai.com')) return 'chatgpt';
-    if (url.includes('claude.ai')) return 'claude';
-    return 'other';
+  async handleSaveClipWithCategory(selectedText, tab) {
+    if (!selectedText || selectedText.trim().length === 0) {
+      throw new Error('선택된 텍스트가 없습니다');
+    }
+
+    // For now, use default category. In future, show category selection UI
+    return this.handleSaveClip(selectedText, tab);
   }
 
-  async saveClip(clip) {
+  async broadcastStorageChange(dataType, changes) {
     try {
-      if (this.storageManager && this.storageManager.initialized) {
-        return await this.storageManager.createClip(clip);
-      } else {
-        // Fallback to old implementation
-        const result = await chrome.storage.local.get(['clips']);
-        const clips = result.clips || [];
-        clips.push(clip);
-        await chrome.storage.local.set({ clips });
-        return clip;
-      }
+      const tabs = await chrome.tabs.query({});
+      const message = { action: 'storageChanged', dataType, changes };
+
+      const promises = tabs.map(tab => {
+        return chrome.tabs.sendMessage(tab.id, message).catch(error => {
+          // 메시지 전송 실패는 무시 (확장 프로그램 컨텍스트가 아닌 탭)
+        });
+      });
+
+      await Promise.all(promises);
     } catch (error) {
-      console.error('Error saving clip:', error);
-      throw error;
+      console.error('Failed to broadcast storage change:', error);
     }
-  }
-
-  async updateClip(clipId, updates) {
-    try {
-      if (this.storageManager && this.storageManager.initialized) {
-        return await this.storageManager.updateClip(clipId, updates);
-      } else {
-        // Fallback to old implementation
-        const result = await chrome.storage.local.get(['clips']);
-        const clips = result.clips || [];
-        const clipIndex = clips.findIndex(clip => clip.id === clipId);
-
-        if (clipIndex === -1) {
-          throw new Error('Clip not found');
-        }
-
-        clips[clipIndex] = { ...clips[clipIndex], ...updates };
-        await chrome.storage.local.set({ clips });
-        return clips[clipIndex];
-      }
-    } catch (error) {
-      console.error('Error updating clip:', error);
-      throw error;
-    }
-  }
-
-  async deleteClip(clipId) {
-    try {
-      if (this.storageManager && this.storageManager.initialized) {
-        await this.storageManager.deleteClip(clipId);
-      } else {
-        // Fallback to old implementation
-        const result = await chrome.storage.local.get(['clips']);
-        const clips = result.clips || [];
-        const filteredClips = clips.filter(clip => clip.id !== clipId);
-        await chrome.storage.local.set({ clips: filteredClips });
-      }
-    } catch (error) {
-      console.error('Error deleting clip:', error);
-      throw error;
-    }
-  }
-
-  async getClips(filters = {}) {
-    try {
-      if (this.storageManager && this.storageManager.initialized) {
-        return await this.storageManager.getClips(filters);
-      } else {
-        // Fallback to old implementation
-        const result = await chrome.storage.local.get(['clips']);
-        let clips = result.clips || [];
-
-        // Apply filters
-        if (filters.categoryId) {
-          clips = clips.filter(clip => clip.categoryIds.includes(filters.categoryId));
-        }
-
-        if (filters.searchQuery) {
-          const query = filters.searchQuery.toLowerCase();
-          clips = clips.filter(clip =>
-            clip.title.toLowerCase().includes(query) ||
-            clip.text.toLowerCase().includes(query) ||
-            clip.tags.some(tag => tag.toLowerCase().includes(query))
-          );
-        }
-
-        // Sort by creation date (newest first)
-        clips.sort((a, b) => b.createdAt - a.createdAt);
-
-        return clips;
-      }
-    } catch (error) {
-      console.error('Error getting clips:', error);
-      throw error;
-    }
-  }
-
-  async getCategories() {
-    try {
-      if (this.storageManager && this.storageManager.initialized) {
-        return await this.storageManager.getCategories();
-      } else {
-        // Fallback to old implementation
-        const result = await chrome.storage.local.get(['categories']);
-        let categories = result.categories || [];
-
-        // Create default category if none exist
-        if (categories.length === 0) {
-          const defaultCategory = {
-            id: 'default',
-            name: 'General',
-            parentId: null,
-            order: 0,
-            createdAt: Date.now()
-          };
-          categories.push(defaultCategory);
-          await chrome.storage.local.set({ categories });
-        }
-
-        return categories;
-      }
-    } catch (error) {
-      console.error('Error getting categories:', error);
-      throw error;
-    }
-  }
-
-  showNotification(title, message) {
-    chrome.notifications.create({
-      type: 'basic',
-      iconUrl: 'icons/icon48.png',
-      title: title,
-      message: message
-    });
   }
 }
 
-// Initialize the background service
+// Initialize background service
 const backgroundService = new BackgroundService();
-
-// Export for debugging
-self.backgroundService = backgroundService;

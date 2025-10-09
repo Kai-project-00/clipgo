@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>ClipGo 확장 프로그램 진단 도구</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+        .debug-section {
+            border: 1px solid #ddd;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 5px;
+            background-color: #f9f9f9;
+        }
+        .test-text {
+            background-color: #e8f4fd;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 3px;
+            cursor: pointer;
+            user-select: text;
+            border-left: 4px solid #2196F3;
+        }
+        button {
+            background-color: #2196F3;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background-color: #1976D2;
+        }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 3px;
+            font-family: monospace;
+        }
+        .success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .warning {
+            background-color: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+        }
+        .info {
+            background-color: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        .log-output {
+            background-color: #263238;
+            color: #fff;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 3px;
+            font-family: monospace;
+            max-height: 300px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+        }
+        .instructions {
+            background-color: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 5px;
+        }
+        .test-result {
+            margin: 5px 0;
+            padding: 8px;
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔧 ClipGo 확장 프로그램 진단 도구</h1>
+
+    <div class="instructions">
+        <h3>📋 진단 순서</h3>
+        <ol>
+            <li><strong>Chrome 확장 프로그램 확인</strong>: 아래 "확장 프로그램 상태 확인" 버튼 클릭</li>
+            <li><strong>콘텐츠 스크립트 확인</strong>: "콘텐츠 스크립트 진단" 버튼 클릭</li>
+            <li><strong>이벤트 리스너 테스트</strong>: 텍스트 드래그하여 이벤트 감지 확인</li>
+            <li><strong>Chrome API 테스트</strong>: 메시징 기능 확인</li>
+            <li><strong>수동 테스트</strong>: 실제 웹사이트에서 테스트</li>
+        </ol>
+    </div>
+
+    <div class="debug-section">
+        <h3>🔍 1. 확장 프로그램 상태 확인</h3>
+        <button onclick="checkExtensionStatus()">확장 프로그램 상태 확인</button>
+        <button onclick="checkChromeAPIs()">Chrome API 확인</button>
+        <div id="extension-status"></div>
+        <div id="api-status" class="log-output"></div>
+    </div>
+
+    <div class="debug-section">
+        <h3>📦 2. 콘텐츠 스크립트 진단</h3>
+        <button onclick="checkContentScript()">콘텐츠 스크립트 확인</button>
+        <button onclick="checkPopupManager()">PopupManager 확인</button>
+        <button onclick="checkEventListeners()">이벤트 리스너 확인</button>
+        <div id="content-script-status"></div>
+    </div>
+
+    <div class="debug-section">
+        <h3>🎯 3. 드래그 테스트</h3>
+        <p>아래 텍스트를 드래그하여 선택해보세요:</p>
+        <div class="test-text" id="test-text-1">
+            This is a test text for ClipGo drag functionality. Try selecting this text with your mouse to see if the popup appears.
+        </div>
+        <div class="test-text" id="test-text-2">
+            Another test text for verifying the drag and drop functionality of the ClipGo extension. This should trigger the popup manager.
+        </div>
+        <button onclick="clearSelectionTestResults()">선택 테스트 결과 지우기</button>
+        <div id="drag-test-results"></div>
+    </div>
+
+    <div class="debug-section">
+        <h3>🔧 4. 메시징 테스트</h3>
+        <button onclick="testMessageToBackground()">백그라운드 메시지 테스트</button>
+        <button onclick="testStorageAPI()">Storage API 테스트</button>
+        <button onclick="clearMessageResults()">메시지 결과 지우기</button>
+        <div id="messaging-results"></div>
+    </div>
+
+    <div class="debug-section">
+        <h3>📊 5. 전체 테스트 실행</h3>
+        <button onclick="runFullDiagnostic()">전체 진단 실행</button>
+        <button onclick="clearAllResults()">모든 결과 지우기</button>
+        <div id="full-diagnostic-results"></div>
+    </div>
+
+    <script>
+        let debugLog = [];
+
+        function log(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const logEntry = `[${timestamp}] ${type.toUpperCase()}: ${message}`;
+            debugLog.push(logEntry);
+            console.log(logEntry);
+            return logEntry;
+        }
+
+        function updateElement(elementId, content, className = 'info') {
+            const element = document.getElementById(elementId);
+            if (element) {
+                element.innerHTML += `<div class="${className}">${content}</div>`;
+            }
+        }
+
+        function checkExtensionStatus() {
+            const statusDiv = document.getElementById('extension-status');
+            statusDiv.innerHTML = '<h4>확장 프로그램 상태</h4>';
+
+            // Check if Chrome APIs are available
+            const hasChrome = typeof chrome !== 'undefined';
+            const hasRuntime = hasChrome && typeof chrome.runtime !== 'undefined';
+            const hasStorage = hasChrome && typeof chrome.storage !== 'undefined';
+            const hasTabs = hasChrome && typeof chrome.tabs !== 'undefined';
+
+            updateElement('extension-status', `Chrome API 접근: ${hasChrome ? '✅' : '❌'}`, hasChrome ? 'success' : 'error');
+            updateElement('extension-status', `Runtime API: ${hasRuntime ? '✅' : '❌'}`, hasRuntime ? 'success' : 'error');
+            updateElement('extension-status', `Storage API: ${hasStorage ? '✅' : '❌'}`, hasStorage ? 'success' : 'error');
+            updateElement('extension-status', `Tabs API: ${hasTabs ? '✅' : '❌'}`, hasTabs ? 'success' : 'error');
+
+            if (hasRuntime) {
+                try {
+                    // Test message sending to background script
+                    chrome.runtime.sendMessage({ action: 'test' }, (response) => {
+                        if (chrome.runtime.lastError) {
+                            updateElement('extension-status', `백그라운드 스크립트: ❌ ${chrome.runtime.lastError.message}`, 'error');
+                        } else {
+                            updateElement('extension-status', '백그라운드 스크립트: ✅', 'success');
+                        }
+                    });
+                } catch (error) {
+                    updateElement('extension-status', `백그라운드 스크립트 접근 오류: ${error.message}`, 'error');
+                }
+            }
+
+            // Test Storage API
+            if (hasStorage) {
+                try {
+                    chrome.storage.local.set({ test: 'value' }, () => {
+                        if (chrome.runtime.lastError) {
+                            updateElement('extension-status', `Storage API 동작: ❌ ${chrome.runtime.lastError.message}`, 'error');
+                        } else {
+                            updateElement('extension-status', 'Storage API 동작: ✅', 'success');
+                        }
+                    });
+                } catch (error) {
+                    updateElement('extension-status', `Storage API 테스트 오류: ${error.message}`, 'error');
+                }
+            }
+
+            // Test Tabs API
+            if (hasTabs) {
+                try {
+                    chrome.tabs.query({ active: true }, (tabs) => {
+                        if (chrome.runtime.lastError) {
+                            updateElement('extension-status', `Tabs API 동작: ❌ ${chrome.runtime.lastError.message}`, 'error');
+                        } else {
+                            updateElement('extension-status', 'Tabs API 동작: ✅', 'success');
+                        }
+                    });
+                } catch (error) {
+                    updateElement('extension-status', `Tabs API 테스트 오류: ${error.message}`, 'error');
+                }
+            }
+
+            log('Extension status check completed');
+        }
+
+        function checkChromeAPIs() {
+            const apiDiv = document.getElementById('api-status');
+            apiDiv.innerHTML = '';
+
+            const apiChecks = {
+                chrome: typeof chrome,
+                chrome_runtime: typeof chrome?.runtime,
+                chrome_storage: typeof chrome?.storage,
+                chrome_tabs: typeof chrome?.tabs,
+                chrome_scripting: typeof chrome?.scripting,
+                chrome_contextMenus: typeof chrome?.contextMenus
+            };
+
+            Object.entries(apiChecks).forEach(([api, type]) => {
+                const status = type !== 'undefined' ? '✅ Available' : '❌ Not Available';
+                log(`${api}: ${status}`);
+                apiDiv.innerHTML += `${api}: ${status}\n`;
+            });
+        }
+
+        function checkContentScript() {
+            const statusDiv = document.getElementById('content-script-status');
+            statusDiv.innerHTML = '<h4>콘텐츠 스크립트 상태</h4>';
+
+            // Check if PopupManager is defined
+            const hasPopupManager = typeof PopupManager !== 'undefined';
+            updateElement('content-script-status', `PopupManager: ${hasPopupManager ? '✅' : '❌'}`, hasPopupManager ? 'success' : 'error');
+
+            if (hasPopupManager) {
+                updateElement('content-script-status', 'PopupManager 타입: ' + typeof PopupManager, 'info');
+                log('PopupManager found and accessible');
+            } else {
+                updateElement('content-script-status', '❌ PopupManager를 찾을 수 없음 - 콘텐츠 스크립트가 주입되지 않았을 수 있습니다', 'error');
+                log('PopupManager not found');
+            }
+
+            // Check for content script execution
+            const scriptTags = Array.from(document.querySelectorAll('script'));
+            const hasContentScript = scriptTags.some(script =>
+                script.src && script.src.includes('content.js')
+            );
+            updateElement('content-script-status', `Content.js 스크립트: ${hasContentScript ? '✅' : '❌'}`, hasContentScript ? 'success' : 'warning');
+        }
+
+        function checkPopupManager() {
+            const statusDiv = document.getElementById('content-script-status');
+
+            if (typeof PopupManager !== 'undefined') {
+                try {
+                    // Try to create a PopupManager instance
+                    const testManager = new PopupManager();
+                    updateElement('content-script-status', 'PopupManager 인스턴스 생성: ✅', 'success');
+                    updateElement('content-script-status', `Manager 타입: ${typeof testManager}`, 'info');
+                    updateElement('content-script-status', `Manager 속성: ${Object.keys(testManager).join(', ')}`, 'info');
+                    log('PopupManager instance created successfully');
+                } catch (error) {
+                    updateElement('content-script-status', `PopupManager 인스턴스 생성 실패: ${error.message}`, 'error');
+                    log(`PopupManager creation failed: ${error.message}`);
+                }
+            } else {
+                updateElement('content-script-status', '❌ PopupManager가 정의되지 않음', 'error');
+            }
+        }
+
+        function checkEventListeners() {
+            const resultsDiv = document.getElementById('drag-test-results');
+
+            // Setup selection detection
+            const handleSelection = (event) => {
+                const selection = window.getSelection();
+                const selectedText = selection.toString().trim();
+
+                if (selectedText.length > 0) {
+                    updateElement('drag-test-results', `텍스트 선택 감지: "${selectedText.substring(0, 50)}..."`, 'success');
+                    log(`Text selected: ${selectedText}`);
+
+                    // Check if popup would be created
+                    if (typeof PopupManager !== 'undefined') {
+                        updateElement('drag-test-results', 'PopupManager 호출 가능: ✅', 'success');
+                    } else {
+                        updateElement('drag-test-results', 'PopupManager 호출 불가: ❌', 'error');
+                    }
+                }
+            };
+
+            document.addEventListener('mouseup', handleSelection, true);
+            document.addEventListener('keyup', handleSelection, true);
+
+            updateElement('drag-test-results', '이벤트 리스너 설정 완료 - 위 텍스트를 선택해보세요', 'info');
+            log('Event listeners setup for selection detection');
+        }
+
+        function testMessageToBackground() {
+            const resultsDiv = document.getElementById('messaging-results');
+
+            if (typeof chrome !== 'undefined' && chrome.runtime) {
+                try {
+                    chrome.runtime.sendMessage(
+                        { action: 'test' },
+                        (response) => {
+                            if (chrome.runtime.lastError) {
+                                updateElement('messaging-results', `메시지 전송 실패: ${chrome.runtime.lastError.message}`, 'error');
+                                log(`Message failed: ${chrome.runtime.lastError.message}`);
+                            } else {
+                                updateElement('messaging-results', `메시지 전송 성공: ${JSON.stringify(response)}`, 'success');
+                                log(`Message response: ${JSON.stringify(response)}`);
+                            }
+                        }
+                    );
+                } catch (error) {
+                    updateElement('messaging-results', `메시지 테스트 오류: ${error.message}`, 'error');
+                    log(`Message test error: ${error.message}`);
+                }
+            } else {
+                updateElement('messaging-results', '❌ Chrome Runtime API를 사용할 수 없음', 'error');
+            }
+        }
+
+        function testStorageAPI() {
+            const resultsDiv = document.getElementById('messaging-results');
+
+            if (typeof chrome !== 'undefined' && chrome.storage) {
+                try {
+                    chrome.storage.local.get(['clips'], (result) => {
+                        if (chrome.runtime.lastError) {
+                            updateElement('messaging-results', `Storage 접근 실패: ${chrome.runtime.lastError.message}`, 'error');
+                        } else {
+                            const clips = result.clips || [];
+                            updateElement('messaging-results', `Storage 접근 성공: ${clips.length}개 클립 저장됨`, 'success');
+                            log(`Storage access successful: ${clips.length} clips found`);
+                        }
+                    });
+                } catch (error) {
+                    updateElement('messaging-results', `Storage 테스트 오류: ${error.message}`, 'error');
+                }
+            } else {
+                updateElement('messaging-results', '❌ Chrome Storage API를 사용할 수 없음', 'error');
+            }
+        }
+
+        function runFullDiagnostic() {
+            log('Starting full diagnostic...');
+            clearAllResults();
+
+            checkExtensionStatus();
+            checkChromeAPIs();
+            checkContentScript();
+            checkEventListeners();
+            testMessageToBackground();
+            testStorageAPI();
+
+            const resultsDiv = document.getElementById('full-diagnostic-results');
+            resultsDiv.innerHTML = '<h4>🔍 전체 진단 완료</h4>';
+            resultsDiv.innerHTML += '<div class="info">위의 각 섹션에서 결과를 확인하세요</div>';
+
+            log('Full diagnostic completed');
+        }
+
+        function clearSelectionTestResults() {
+            document.getElementById('drag-test-results').innerHTML = '';
+        }
+
+        function clearMessageResults() {
+            document.getElementById('messaging-results').innerHTML = '';
+        }
+
+        function clearAllResults() {
+            const resultIds = ['extension-status', 'api-status', 'content-script-status', 'drag-test-results', 'messaging-results', 'full-diagnostic-results'];
+            resultIds.forEach(id => {
+                document.getElementById(id).innerHTML = '';
+            });
+            debugLog = [];
+            log('All results cleared');
+        }
+
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            log('Debug tool loaded');
+            console.log('🔧 ClipGo Debug Tool loaded');
+            console.log('Use the buttons above to diagnose the extension');
+        });
+    </script>
+</body>
+</html>

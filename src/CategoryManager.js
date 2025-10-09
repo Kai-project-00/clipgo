@@ -131,6 +131,17 @@ class CategoryManager {
     return tree;
   }
 
+  async getAllCategories() {
+    if (!this.initialized) throw new Error('CategoryManager not initialized');
+
+    const cached = this.getFromCache('all_categories');
+    if (cached) return cached;
+
+    const categories = await this.storageManager.getCategories();
+    this.setToCache('all_categories', categories);
+    return categories;
+  }
+
   async getCategoriesByParent(parentId) {
     if (!this.initialized) throw new Error('CategoryManager not initialized');
 
@@ -478,6 +489,9 @@ class CategoryManager {
     } else {
       this.cache.clear();
     }
+
+    // 'all_categories' 캐시도 무효화
+    this.cache.delete('all_categories');
   }
 
   // ===== 도우미 메소드 =====
@@ -496,5 +510,7 @@ class CategoryManager {
   }
 }
 
-// Export for global use
-window.CategoryManager = CategoryManager;
+// Export for global use (only in window context)
+if (typeof window !== 'undefined') {
+  window.CategoryManager = CategoryManager;
+}

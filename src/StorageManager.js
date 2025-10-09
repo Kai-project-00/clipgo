@@ -8,6 +8,10 @@ class StorageManager {
     this.storageQuota = null;
     this.currentUsage = null;
 
+    // 이벤트 리스너 등록
+    this.eventListeners = new Map();
+    this.operationMetrics = new Map();
+
     // Data schemas
     this.schemas = {
       category: {
@@ -51,6 +55,7 @@ class StorageManager {
       await this.initializeStorage();
       await this.checkStorageQuota();
       await this.performMigration();
+      this.setupStorageEventListeners();
       this.initialized = true;
       console.log('StorageManager initialized successfully');
     } catch (error) {
@@ -477,9 +482,14 @@ class StorageManager {
   invalidateCache(key) {
     if (key) {
       this.cache.delete(key);
+      console.log(`Cache invalidated for key: ${key}`);
     } else {
       this.cache.clear();
+      console.log('All cache invalidated');
     }
+
+    // 캐시 무효화 이벤트 발생
+    this.dispatchEvent('cacheInvalidated', { key });
   }
 
   // Storage quota management
@@ -1148,7 +1158,321 @@ class StorageManager {
 
     return stats;
   }
+
+  // 이벤트 기반 갱신 메커니즘
+  setupStorageEventListeners() {
+    try {
+      // Chrome 스토리지 변경 이벤트 리스너
+      chrome.storage.onChanged.addListener((changes, areaName) => {
+        if (areaName === 'local') {
+          this.handleStorageChanges(changes);
+        }
+      });
+
+      // 원래 메서드 저장 및 이벤트 강화 메서드로 대체
+      this.setupEventEnhancedMethods();
+
+      console.log('Storage event listeners setup complete');
+    } catch (error) {
+      console.error('Failed to setup storage event listeners:', error);
+    }
+  }
+
+  setupEventEnhancedMethods() {
+    // 원래 메서드 저장
+    this._originalCreateClip = this.createClip.bind(this);
+    this._originalUpdateClip = this.updateClip.bind(this);
+    this._originalDeleteClip = this.deleteClip.bind(this);
+    this._originalCreateCategory = this.createCategory.bind(this);
+
+    // 이벤트 강화 메서드로 대체
+    this.createClip = this.createClipWithEvents.bind(this);
+    this.updateClip = this.updateClipWithEvents.bind(this);
+    this.deleteClip = this.deleteClipWithEvents.bind(this);
+    this.createCategory = this.createCategoryWithEvents.bind(this);
+  }
+
+  handleStorageChanges(changes) {
+    const timestamp = Date.now();
+
+    Object.keys(changes).forEach(key => {
+      const change = changes[key];
+      const eventData = {
+        key: key,
+        oldValue: change.oldValue,
+        newValue: change.newValue,
+        timestamp: timestamp,
+        source: 'storage_event'
+      };
+
+      // 성능 메트릭 기록
+      this.recordOperationMetric('storage_change', key, timestamp);
+
+      // 이벤트 발생
+      this.emitEvent('storageChanged', eventData);
+
+      // 특정 데이터 타입에 대한 이벤트 발생
+      if (key === 'clips') {
+        this.emitEvent('clipsChanged', eventData);
+      } else if (key === 'categories') {
+        this.emitEvent('categoriesChanged', eventData);
+      } else if (key === 'settings') {
+        this.emitEvent('settingsChanged', eventData);
+      }
+
+      // 캐시 무효화
+      this.invalidateCache(key);
+
+      console.log(`🔄 Storage changed: ${key}`, {
+        oldValueSize: change.oldValue ? JSON.stringify(change.oldValue).length : 0,
+        newValueSize: change.newValue ? JSON.stringify(change.newValue).length : 0,
+        timestamp
+      });
+    });
+  }
+
+  // 이벤트 리스너 관리
+  addEventListener(eventType, callback) {
+    if (!this.eventListeners.has(eventType)) {
+      this.eventListeners.set(eventType, new Set());
+    }
+    this.eventListeners.get(eventType).add(callback);
+
+    console.log(`Event listener added for: ${eventType}`, {
+      totalListeners: this.eventListeners.get(eventType).size
+    });
+  }
+
+  removeEventListener(eventType, callback) {
+    if (this.eventListeners.has(eventType)) {
+      this.eventListeners.get(eventType).delete(callback);
+
+      if (this.eventListeners.get(eventType).size === 0) {
+        this.eventListeners.delete(eventType);
+      }
+    }
+
+    console.log(`Event listener removed for: ${eventType}`);
+  }
+
+  emitEvent(eventType, data) {
+    if (this.eventListeners.has(eventType)) {
+      const listeners = this.eventListeners.get(eventType);
+      listeners.forEach(callback => {
+        try {
+          callback(data);
+        } catch (error) {
+          console.error(`Error in event listener for ${eventType}:`, error);
+        }
+      });
+
+      console.log(`Event emitted: ${eventType}`, {
+        listenersCount: listeners.size,
+        data
+      });
+    }
+  }
+
+  // 성능 메트릭 기록
+  recordOperationMetric(operation, key, timestamp) {
+    const metricKey = `${operation}_${key}`;
+
+    if (!this.operationMetrics.has(metricKey)) {
+      this.operationMetrics.set(metricKey, {
+        count: 0,
+        totalTime: 0,
+        lastOperation: null,
+        averageTime: 0
+      });
+    }
+
+    const metric = this.operationMetrics.get(metricKey);
+    metric.count++;
+    metric.lastOperation = timestamp;
+
+    // 성능 보고 (주기적으로)
+    if (metric.count % 10 === 0) {
+      this.reportPerformanceMetrics(metricKey);
+    }
+  }
+
+  reportPerformanceMetrics(metricKey) {
+    const metric = this.operationMetrics.get(metricKey);
+    if (!metric) return;
+
+    console.log(`📊 Performance Report - ${metricKey}:`, {
+      operationCount: metric.count,
+      lastOperation: new Date(metric.lastOperation).toISOString(),
+      averageTime: metric.averageTime.toFixed(2) + 'ms'
+    });
+  }
+
+  // 실시간 데이터 동기화
+  async forceRefreshData(dataType) {
+    try {
+      console.log(`🔄 Force refreshing data: ${dataType}`);
+
+      const startTime = performance.now();
+
+      let data;
+      if (dataType === 'clips') {
+        data = await this.getClips();
+      } else if (dataType === 'categories') {
+        data = await this.getCategories();
+      } else if (dataType === 'settings') {
+        data = await this.getSettings();
+      } else {
+        throw new Error(`Unknown data type: ${dataType}`);
+      }
+
+      const endTime = performance.now();
+      const loadTime = endTime - startTime;
+
+      // 새로고침 이벤트 발생
+      this.emitEvent('dataRefreshed', {
+        dataType,
+        data,
+        loadTime,
+        timestamp: Date.now(),
+        source: 'force_refresh'
+      });
+
+      console.log(`✅ Force refresh complete: ${dataType}`, {
+        dataSize: data.length,
+        loadTime: loadTime.toFixed(2) + 'ms'
+      });
+
+      return {
+        success: true,
+        data,
+        loadTime,
+        dataType
+      };
+    } catch (error) {
+      console.error(`Force refresh failed for ${dataType}:`, error);
+
+      this.emitEvent('dataRefreshError', {
+        dataType,
+        error: error.message,
+        timestamp: Date.now()
+      });
+
+      throw error;
+    }
+  }
+
+  // 데이터 동기화 상태 확인
+  getSyncStatus() {
+    const cacheStats = {
+      totalCacheEntries: this.cache.size,
+      cacheKeys: Array.from(this.cache.keys()),
+      lastCacheActivity: this.cache.size > 0 ?
+        Math.max(...Array.from(this.cache.values()).map(v => v.timestamp)) : null
+    };
+
+    const eventStats = {
+      totalEventListeners: Array.from(this.eventListeners.values())
+        .reduce((sum, listeners) => sum + listeners.size, 0),
+      eventTypes: Array.from(this.eventListeners.keys()),
+      operationMetrics: Array.from(this.operationMetrics.entries())
+        .map(([key, metric]) => ({
+          key,
+          count: metric.count,
+          lastOperation: metric.lastOperation
+        }))
+    };
+
+    return {
+      initialized: this.initialized,
+      storageQuota: this.storageQuota,
+      currentUsage: this.currentUsage,
+      cache: cacheStats,
+      events: eventStats,
+      timestamp: Date.now()
+    };
+  }
+
+  // 클립 생성 시 이벤트 강화
+  async createClipWithEvents(clipData) {
+    const result = await this._originalCreateClip(clipData);
+
+    // 클립 생성 이벤트 발생
+    this.emitEvent('clipCreated', {
+      clip: result,
+      source: clipData.source || 'unknown',
+      timestamp: Date.now()
+    });
+
+    return result;
+  }
+
+  // 클립 업데이트 시 이벤트 강화
+  async updateClipWithEvents(id, updates) {
+    const result = await this._originalUpdateClip(id, updates);
+
+    // 클립 업데이트 이벤트 발생
+    this.emitEvent('clipUpdated', {
+      clipId: id,
+      updates,
+      timestamp: Date.now()
+    });
+
+    return result;
+  }
+
+  // 클립 삭제 시 이벤트 강화
+  async deleteClipWithEvents(id) {
+    const deletedClip = await this.getClip(id);
+    await this._originalDeleteClip(id);
+
+    // 클립 삭제 이벤트 발생
+    this.emitEvent('clipDeleted', {
+      clipId: id,
+      deletedClip,
+      timestamp: Date.now()
+    });
+  }
+
+  // 카테고리 생성 시 이벤트 강화
+  async createCategoryWithEvents(categoryData) {
+    const result = await this._originalCreateCategory(categoryData);
+
+    // 카테고리 생성 이벤트 발생
+    this.emitEvent('categoryCreated', {
+      category: result,
+      timestamp: Date.now()
+    });
+
+    return result;
+  }
+
+  // 데이터 동기화 문제 해결
+  async resolveSyncConflicts(dataType) {
+    try {
+      console.log(`🔧 Resolving sync conflicts for: ${dataType}`);
+
+      // 캐시 무효화
+      this.invalidateCache(dataType);
+
+      // 최신 데이터 로드
+      const freshData = await this.forceRefreshData(dataType);
+
+      // 동기화 해결 이벤트 발생
+      this.emitEvent('syncConflictResolved', {
+        dataType,
+        resolvedAt: Date.now(),
+        dataSize: freshData.data.length
+      });
+
+      return freshData;
+    } catch (error) {
+      console.error(`Failed to resolve sync conflicts for ${dataType}:`, error);
+      throw error;
+    }
+  }
 }
 
-// Export for global use
-window.StorageManager = StorageManager;
+// Export for global use (only in window context)
+if (typeof window !== 'undefined') {
+  window.StorageManager = StorageManager;
+}

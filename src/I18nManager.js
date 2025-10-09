@@ -399,6 +399,8 @@ class ThemeManager {
     }
 }
 
-// 전역으로 export
-window.I18nManager = I18nManager;
-window.ThemeManager = ThemeManager;
+// 전역으로 export (only in window context)
+if (typeof window !== 'undefined') {
+  window.I18nManager = I18nManager;
+  window.ThemeManager = ThemeManager;
+}

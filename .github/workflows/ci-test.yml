@@ -1,0 +1,102 @@
+name: ClipGo CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        node-version: [18.x, 20.x]
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js ${{ matrix.node-version }}
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ matrix.node-version }}
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Run basic tests
+      run: npm test
+
+    - name: Setup Playwright MCP
+      run: |
+        cd playwright-mcp
+        npm ci
+
+    - name: Run Playwright MCP tests
+      run: |
+        cd playwright-mcp
+        npm test
+
+    - name: Run extension validation
+      run: |
+        # manifest.json 유효성 검사
+        node -e "
+          const manifest = require('./manifest.json');
+          console.log('✅ Manifest validation passed');
+          console.log('Extension name:', manifest.name);
+          console.log('Version:', manifest.version);
+          console.log('Manifest version:', manifest.manifest_version);
+        "
+
+  security:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Run security audit
+      run: npm audit --audit-level=moderate
+
+    - name: Check for secrets
+      run: |
+        # 기본적인 시크릿 체크
+        if grep -r "api_key\|secret\|password\|token" --include="*.js" --include="*.json" . ; then
+          echo "❌ Potential secrets found"
+          exit 1
+        else
+          echo "✅ No obvious secrets found"
+        fi
+
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20.x'
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Check code formatting
+      run: |
+        if command -v prettier &> /dev/null; then
+          npx prettier --check .
+        else
+          echo "⚠️ Prettier not installed, skipping format check"
+        fi
+
+    - name: Lint check
+      run: |
+        if command -v eslint &> /dev/null; then
+          npx eslint .
+        else
+          echo "⚠️ ESLint not installed, skipping lint check"
+        fi

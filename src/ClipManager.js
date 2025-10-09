@@ -122,6 +122,10 @@ class ClipManager {
     return clips;
   }
 
+  async getAllClips() {
+    return this.getClips();
+  }
+
   async getClipsByCategory(categoryId) {
     return this.getClips({ categoryIds: [categoryId] });
   }
@@ -600,5 +604,7 @@ class ClipManager {
   }
 }
 
-// Export for global use
-window.ClipManager = ClipManager;
+// Export for global use (only in window context)
+if (typeof window !== 'undefined') {
+  window.ClipManager = ClipManager;
+}

@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manager Initialization Debug</title>
+</head>
+<body>
+    <h1>Manager Initialization Debug</h1>
+    <div id="debug-output"></div>
+
+    <!-- 모의 Chrome API 로드 -->
+    <script src="test-mock-chrome-api.js"></script>
+
+    <!-- ClipGo 콘텐츠 스크립트 로드 -->
+    <script src="src/StorageManager.js"></script>
+    <script src="src/CategoryManager.js"></script>
+    <script src="src/ClipManager.js"></script>
+    <script src="content.js"></script>
+
+    <script>
+        async function debugManagers() {
+            const output = document.getElementById('debug-output');
+            let debugHtml = '<h2>Debug Results:</h2>';
+
+            try {
+                // Manager 클래스 확인
+                debugHtml += `<p>StorageManager exists: ${typeof StorageManager !== 'undefined'}</p>`;
+                debugHtml += `<p>CategoryManager exists: ${typeof CategoryManager !== 'undefined'}</p>`;
+                debugHtml += `<p>ClipManager exists: ${typeof ClipManager !== 'undefined'}</p>`;
+
+                // StorageManager 테스트
+                if (typeof StorageManager !== 'undefined') {
+                    const sm = new StorageManager();
+                    debugHtml += `<p>StorageManager before init: ${sm.initialized}</p>`;
+                    await sm.init();
+                    debugHtml += `<p>StorageManager after init: ${sm.initialized}</p>`;
+                }
+
+                // CategoryManager 테스트
+                if (typeof CategoryManager !== 'undefined') {
+                    const cm = new CategoryManager();
+                    debugHtml += `<p>CategoryManager before init: ${cm.initialized}</p>`;
+                    await cm.init();
+                    debugHtml += `<p>CategoryManager after init: ${cm.initialized}</p>`;
+                }
+
+                // ClipManager 테스트
+                if (typeof ClipManager !== 'undefined') {
+                    const clm = new ClipManager();
+                    debugHtml += `<p>ClipManager before init: ${clm.initialized}</p>`;
+                    await clm.init();
+                    debugHtml += `<p>ClipManager after init: ${clm.initialized}</p>`;
+                }
+
+                // 전역 객체 확인
+                debugHtml += `<p>window.StorageManager: ${typeof window.StorageManager}</p>`;
+                debugHtml += `<p>window.CategoryManager: ${typeof window.CategoryManager}</p>`;
+                debugHtml += `<p>window.ClipManager: ${typeof window.ClipManager}</p>`;
+
+            } catch (error) {
+                debugHtml += `<p style="color: red;">Error: ${error.message}</p>`;
+            }
+
+            output.innerHTML = debugHtml;
+        }
+
+        // 페이지 로드 후 디버그 실행
+        window.addEventListener('load', debugManagers);
+    </script>
+</body>
+</html>

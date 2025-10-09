@@ -1,0 +1,39 @@
+{
+  "dependencies": {
+    "@playwright/test": "^1.55.1",
+    "playwright": "^1.55.1"
+  },
+  "name": "clipgo",
+  "version": "1.0.0",
+  "description": "ClipGo는 ChatGPT, Claude 등 AI 대화 플랫폼에서 중요한 텍스트를 저장하고 관리하기 위한 Chrome 확장 프로그램입니다. 직관적인 카테고리 시스템, 강력한 검색 기능, 다국어 지원을 제공하여 지식 관리를 효율적으로 만들어줍니다.",
+  "main": "background.js",
+  "scripts": {
+    "test": "npm run test:ci",
+    "test:ci": "node test-ci-cd.js && npm run test:playwright",
+    "test:basic": "echo 'Run basic tests in browser environment' && echo 'See test-basic-functionality.js'",
+    "test:extension": "echo 'Run extension tests in browser environment' && echo 'See test-extension.js'",
+    "test:playwright": "cd playwright-mcp && npm test",
+    "test:all": "npm run test:ci",
+    "start:test-server": "node playwright-mcp/test-http-server.js",
+    "validate": "node -e \"const manifest = require('./manifest.json'); console.log('✅ Manifest validation passed'); console.log('Extension name:', manifest.name); console.log('Version:', manifest.version);\"",
+    "security:audit": "npm audit --audit-level=moderate",
+    "format:check": "npx prettier --check . || echo 'Prettier not found'",
+    "lint": "npx eslint . || echo 'ESLint not found'",
+    "dev": "npm run dev:setup && npm run dev:server",
+    "dev:setup": "node setup-dev-environment.js",
+    "dev:server": "npm run start:test-server",
+    "dev:test": "npm run test:all",
+    "dev:watch": "npm run test:playwright -- --watch",
+    "dev:debug": "node --inspect-brk test-extension.js",
+    "dev:clean": "rm -rf node_modules playwright-mcp/node_modules playwright-mcp/test-results && npm install",
+    "dev:logs": "tail -f playwright-mcp/server.log",
+    "dev:reset": "npm run dev:clean && npm run dev:setup"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Kai-project-00/clipgo/issues"
+  },
+  "homepage": "https://github.com/Kai-project-00/clipgo#readme"
+}

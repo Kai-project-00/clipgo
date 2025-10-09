@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Content Types Test - ClipGo</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f8f9fa;
+        }
+        .content-section {
+            margin: 30px 0;
+            padding: 25px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .section-title {
+            color: #2c3e50;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+        }
+        pre {
+            background: #2c3e50;
+            color: #ecf0f1;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+            margin: 10px 0;
+        }
+        code {
+            background: #e8f4f8;
+            padding: 2px 4px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+        }
+        blockquote {
+            border-left: 4px solid #3498db;
+            padding-left: 20px;
+            margin: 20px 0;
+            font-style: italic;
+            color: #555;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 12px;
+            text-align: left;
+        }
+        th {
+            background: #3498db;
+            color: white;
+        }
+        tr:nth-child(even) {
+            background: #f8f9fa;
+        }
+        .list-item {
+            padding: 8px 0;
+            border-bottom: 1px solid #eee;
+        }
+        .highlight {
+            background: #fff3cd;
+            padding: 2px 4px;
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔧 콘텐츠 타입 테스트 페이지</h1>
+    <p>ClipGo 확장 프로그램이 다양한 콘텐츠 타입에서 잘 작동하는지 테스트합니다.</p>
+
+    <div class="content-section">
+        <h2 class="section-title">💻 코드 블록 테스트</h2>
+        <p>다음은 JavaScript 코드 예제입니다:</p>
+        <pre><code>// ClipGo 확장 프로그램 초기화 코드
+const clipManager = new ClipManager({
+    storage: 'chrome.storage',
+    categories: ['work', 'personal', 'ideas']
+});
+
+// 클립 저장 함수
+async function saveClip(text, category) {
+    try {
+        await clipManager.saveClip({
+            text: text,
+            category: category,
+            timestamp: new Date(),
+            source: window.location.href
+        });
+        console.log('클립이 성공적으로 저장되었습니다.');
+    } catch (error) {
+        console.error('클립 저장 실패:', error);
+    }
+}</code></pre>
+    </div>
+
+    <div class="content-section">
+        <h2 class="section-title">💬 인용구 테스트</h2>
+        <blockquote>
+            "인공지능은 단순한 도구가 아니라, 인간의 창의성을 증폭시키는 파트너입니다. 기술이 발전할수록 우리는 더 복잡한 문제를 해결할 수 있게 될 것입니다."
+        </blockquote>
+        <p>이 인용구는 AI의 미래에 대한 통찰을 제공합니다.</p>
+    </div>
+
+    <div class="content-section">
+        <h2 class="section-title">📊 데이터 테이블 테스트</h2>
+        <p>ClipGo 확장 프로그램의 기능 비교표:</p>
+        <table>
+            <thead>
+                <tr>
+                    <th>기능</th>
+                    <th>버전 1.0</th>
+                    <th>버전 2.0</th>
+                    <th>우선순위</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>텍스트 드래그 저장</td>
+                    <td>✅</td>
+                    <td>✅</td>
+                    <td>높음</td>
+                </tr>
+                <tr>
+                    <td>카테고리 관리</td>
+                    <td>✅</td>
+                    <td>✅</td>
+                    <td>높음</td>
+                </tr>
+                <tr>
+                    <td>동기화 기능</td>
+                    <td>⚠️</td>
+                    <td>✅</td>
+                    <td>높음</td>
+                </tr>
+                <tr>
+                    <td>내보내기 기능</td>
+                    <td>❌</td>
+                    <td>🔄</td>
+                    <td>중간</td>
+                </tr>
+                <tr>
+                    <td>AI 분석</td>
+                    <td>❌</td>
+                    <td>📋</td>
+                    <td>낮음</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="content-section">
+        <h2 class="section-title">📝 리스트 형식 테스트</h2>
+        <h3>ClipGo 사용 방법</h3>
+        <div class="list-item">
+            <strong>1. 확장 프로그램 설치</strong> - Chrome 웹 스토어에서 ClipGo 확장 프로그램을 설치합니다.
+        </div>
+        <div class="list-item">
+            <strong>2. 텍스트 선택</strong> - 웹 페이지에서 저장하고 싶은 텍스트를 드래그하여 선택합니다.
+        </div>
+        <div class="list-item">
+            <strong>3. 카테고리 선택</strong> - 나타나는 팝업에서 적절한 카테고리를 선택합니다.
+        </div>
+        <div class="list-item">
+            <strong>4. 저장 확인</strong> - 확장 프로그램 팝업에서 저장된 내용을 확인합니다.
+        </div>
+    </div>
+
+    <div class="content-section">
+        <h2 class="section-title">🎨 혼합 콘텐츠 테스트</h2>
+        <p>다양한 형식의 콘텐츠가 혼합된 텍스트입니다:</p>
+        <p>ClipGo는 <code>drag-and-drop</code> 기능을 지원하며, 사용자가 웹 페이지에서 텍스트를 쉽게 저장할 수 있습니다. 이 기능은 <span class="highlight">특히 연구자와 개발자들에게 유용</span>합니다.</p>
+        <p>주요 특징:</p>
+        <ul>
+            <li>실시간 동기화</li>
+            <li>다중 카테고리 지원</li>
+            <li>내보내기 기능 (JSON, CSV, Markdown)</li>
+        </ul>
+        <p>다음은 간단한 사용 예제입니다:</p>
+        <pre><code>const clip = {
+    text: "저장할 텍스트",
+    category: "research",
+    timestamp: new Date()
+};</code></pre>
+    </div>
+
+    <div class="content-section">
+        <h2 class="section-title">🔍 특수 문자 테스트</h2>
+        <p>다양한 특수 문자와 기호들이 포함된 텍스트:</p>
+        <p>
+            ★ ★ ★ ★ ★ 별점 평가<br>
+            ♠ ♥ ♦ ♣ 카드 기호<br>
+            ← ↑ → ↓ 방향키<br>
+            ☀ ☁ ☂ ☃ 날씨 기호<br>
+            © ® ™ ℠ 법적 기호
+        </p>
+        <p>수학 기호: ∑ ∏ ∫ √ ∞ ≈ ≠ ≤ ≥ ∈ ∉</p>
+        <p>화폐 기호: ₩ $ € £ ¥ ₽</p>
+    </div>
+
+    <!-- 모의 Chrome API 로드 -->
+    <script src="test-mock-chrome-api.js"></script>
+
+    <!-- ClipGo 콘텐츠 스크립트 로드 -->
+    <script src="src/StorageManager.js"></script>
+    <script src="src/CategoryManager.js"></script>
+    <script src="src/ClipManager.js"></script>
+    <script src="content.js"></script>
+
+    <script>
+        // 텍스트 선택 이벤트 핸들러
+        document.addEventListener('mouseup', () => {
+            const selection = window.getSelection();
+            if (selection.toString().length > 0) {
+                console.log('콘텐츠 타입 테스트 - 텍스트 선택됨:', selection.toString().substring(0, 100));
+            }
+        });
+    </script>
+</body>
+</html>

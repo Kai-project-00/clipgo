@@ -25,6 +25,9 @@ class PopupManager {
         // 성능 측정 시작
         const startTime = performance.now();
 
+        console.log('🚀 PopupManager.showSelectionPopup called!', 'info');
+        console.log('Selection:', selection ? selection.toString().substring(0, 50) : 'null', 'info');
+
         if (!selection || selection.toString().trim().length === 0) {
             console.warn('PopupManager: 선택된 텍스트가 없습니다.');
             return;
@@ -35,22 +38,32 @@ class PopupManager {
         // 팝업이 이미 존재하면 제거
         this.hideSelectionPopup();
 
+        console.log('📦 Creating popup element...', 'info');
         // 팝업 생성
         this.popup = this.createPopupElement();
+        console.log('✅ Popup element created:', this.popup ? 'success' : 'failed', 'info');
 
         // 위치 계산 및 설정
+        console.log('📍 Calculating popup position...', 'info');
         const position = this.calculatePopupPosition(selection, window);
         this.setPopupPosition(position);
+        console.log('✅ Popup position set:', position, 'info');
 
         // 팝업 내용 채우기
+        console.log('📝 Populating popup content...', 'info');
         this.populatePopupContent(selection, options);
+        console.log('✅ Popup content populated', 'info');
 
         // DOM에 추가
+        console.log('🔗 Adding popup to DOM...', 'info');
         document.body.appendChild(this.popup);
         this.isVisible = true;
+        console.log('✅ Popup added to DOM successfully!', 'success');
 
         // 이벤트 리스너 설정
+        console.log('⚙️ Setting up event listeners...', 'info');
         this.setupEventListeners();
+        console.log('✅ Event listeners set up', 'info');
 
         // 접근성 포커스
         const titleInput = this.popup.querySelector('#popup-title-input');
@@ -154,7 +167,37 @@ class PopupManager {
      * @returns {Object} {left, top} 위치 정보
      */
     calculatePopupPosition(selection, windowObj) {
-        const rect = selection.getBoundingClientRect();
+        let rect;
+
+        try {
+            // Selection에서 Range를 추출하여 위치 계산
+            if (selection && selection.rangeCount > 0) {
+                const range = selection.getRangeAt(0);
+                rect = range.getBoundingClientRect();
+            } else {
+                // fallback to mouse position or center of screen
+                rect = {
+                    left: windowObj.innerWidth / 2,
+                    top: windowObj.innerHeight / 2,
+                    width: 0,
+                    height: 0,
+                    right: windowObj.innerWidth / 2,
+                    bottom: windowObj.innerHeight / 2
+                };
+            }
+        } catch (error) {
+            console.error('Error getting selection position:', error);
+            // fallback to center of screen
+            rect = {
+                left: windowObj.innerWidth / 2,
+                top: windowObj.innerHeight / 2,
+                width: 0,
+                height: 0,
+                right: windowObj.innerWidth / 2,
+                bottom: windowObj.innerHeight / 2
+            };
+        }
+
         const scrollTop = windowObj.scrollY || windowObj.pageYOffset;
         const scrollLeft = windowObj.scrollX || windowObj.pageXOffset;
 
@@ -453,7 +496,7 @@ class PopupManager {
             categoryId,
             text: this.currentSelection.toString(),
             url: window.location.href,
-            source: this.detectAIService()
+            source: this.popupManager ? this.popupManager.detectAIService() : 'AI'
         };
 
         // chrome.runtime.sendMessage를 통해 백그라운드 스크립트로 저장 요청
@@ -748,7 +791,7 @@ class TextSelectionHandler {
         // Show popup for all sites including AI sites
         if (this.popupManager) {
           this.popupManager.showSelectionPopup(selection, {
-            aiService: this.detectAIService(),
+            aiService: this.popupManager.detectAIService(),
             isShadowDOM: isShadowDOM
           });
         } else {
@@ -842,7 +885,7 @@ class TextSelectionHandler {
         this.currentSelection = selectedText;
         if (this.popupManager) {
           this.popupManager.showSelectionPopup(selection, {
-            aiService: this.detectAIService()
+            aiService: this.popupManager.detectAIService()
           });
         } else {
           console.warn('PopupManager not loaded yet');
@@ -914,7 +957,7 @@ class TextSelectionHandler {
       if (draggedText.length > 0) {
         if (this.popupManager) {
           this.popupManager.showSelectionPopup(window.getSelection(), {
-            aiService: this.detectAIService()
+            aiService: this.popupManager.detectAIService()
           });
         } else {
           console.warn('PopupManager not loaded yet');
@@ -1291,6 +1334,9 @@ class TextSelectionHandler {
   }
 
   addPopupEventListeners(popup) {
+    // Load CSS files if not already loaded
+    this.loadPopupCSS();
+
     // Cancel button
     const cancelBtn = popup.querySelector('#cancel-save-btn');
     cancelBtn.addEventListener('click', () => {
@@ -1333,6 +1379,90 @@ class TextSelectionHandler {
       element.addEventListener('input', resetTimeout);
       element.addEventListener('click', resetTimeout);
     });
+  }
+
+  loadPopupCSS() {
+    // Check if CSS is already loaded
+    if (document.getElementById('clipgo-popup-styles')) {
+      return;
+    }
+
+    try {
+      // Load overlay CSS
+      const overlayCSSLink = document.createElement('link');
+      overlayCSSLink.rel = 'stylesheet';
+      overlayCSSLink.href = chrome.runtime.getURL('popup-overlay.css');
+      overlayCSSLink.id = 'clipgo-popup-styles-overlay';
+      document.head.appendChild(overlayCSSLink);
+
+      // Load popup CSS
+      const popupCSSLink = document.createElement('link');
+      popupCSSLink.rel = 'stylesheet';
+      popupCSSLink.href = chrome.runtime.getURL('popup.css');
+      popupCSSLink.id = 'clipgo-popup-styles';
+      document.head.appendChild(popupCSSLink);
+
+      console.log('✅ Popup CSS loaded successfully');
+    } catch (error) {
+      console.error('❌ Failed to load popup CSS:', error);
+
+      // Fallback: add basic inline styles
+      const fallbackStyles = document.createElement('style');
+      fallbackStyles.id = 'clipgo-popup-styles';
+      fallbackStyles.textContent = `
+        .chat-ai-popup-overlay {
+          position: fixed !important;
+          top: 0 !important;
+          left: 0 !important;
+          width: 100% !important;
+          height: 100% !important;
+          background: rgba(0, 0, 0, 0.5) !important;
+          display: flex !important;
+          align-items: center !important;
+          justify-content: center !important;
+          z-index: 10000 !important;
+        }
+        .popup-container {
+          background: white !important;
+          border-radius: 8px !important;
+          padding: 20px !important;
+          max-width: 500px !important;
+          width: 90% !important;
+          box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3) !important;
+        }
+        .popup-header {
+          display: flex !important;
+          justify-content: space-between !important;
+          align-items: center !important;
+          margin-bottom: 20px !important;
+        }
+        .close-btn {
+          background: none !important;
+          border: none !important;
+          font-size: 24px !important;
+          cursor: pointer !important;
+        }
+        .form-group {
+          margin-bottom: 15px !important;
+        }
+        .title-input, .preview-text {
+          width: 100% !important;
+          padding: 10px !important;
+          border: 1px solid #ddd !important;
+          border-radius: 4px !important;
+        }
+        .save-btn {
+          background: #007bff !important;
+          color: white !important;
+          border: none !important;
+          padding: 10px 20px !important;
+          border-radius: 4px !important;
+          cursor: pointer !important;
+        }
+      `;
+      document.head.appendChild(fallbackStyles);
+      console.log('⚠️ Using fallback inline styles');
+    }
   }
 
   async loadCategories() {
@@ -1512,8 +1642,72 @@ class TextSelectionHandler {
 
   }
 
-// Initialize the text selection handler
-const textSelectionHandler = new TextSelectionHandler();
+// Initialize the text selection handler when DOM is ready
+let textSelectionHandler;
 
-// Export for debugging
+function initializeContentScript() {
+    console.log('🚀 ClipGo Content Script: Starting initialization...');
+
+    // Check Chrome API availability with retry mechanism
+    if (typeof chrome === 'undefined' || !chrome.runtime || !chrome.storage) {
+        console.error('❌ ClipGo Content Script: Chrome APIs not available');
+
+        // Retry initialization after a delay
+        setTimeout(() => {
+            console.log('🔄 Retrying content script initialization...');
+            initializeContentScript();
+        }, 1000);
+        return;
+    }
+
+    console.log('✅ ClipGo Content Script: Chrome APIs available');
+
+    try {
+        textSelectionHandler = new TextSelectionHandler();
+        window.textSelectionHandler = textSelectionHandler;
+        window.PopupManager = PopupManager;
+        window.StorageManager = StorageManager;
+        window.CategoryManager = CategoryManager;
+        window.ClipManager = ClipManager;
+        console.log('✅ ClipGo Content Script: TextSelectionHandler initialized successfully');
+
+        // 확장 프로그램 상태 로깅
+        console.log('📊 Extension Info:', {
+            extensionId: chrome.runtime.id,
+            url: window.location.href,
+            readyState: document.readyState,
+            hasTextSelectionHandler: !!window.textSelectionHandler,
+            hasPopupManager: !!window.PopupManager
+        });
+    } catch (error) {
+        console.error('❌ ClipGo Content Script: Failed to initialize TextSelectionHandler:', error);
+
+        // 재시도 메커니즘
+        setTimeout(() => {
+            console.log('🔄 Retrying TextSelectionHandler initialization...');
+            try {
+                textSelectionHandler = new TextSelectionHandler();
+                window.textSelectionHandler = textSelectionHandler;
+                window.PopupManager = PopupManager;
+                window.StorageManager = StorageManager;
+                window.CategoryManager = CategoryManager;
+                window.ClipManager = ClipManager;
+                console.log('✅ ClipGo Content Script: TextSelectionHandler initialized successfully on retry');
+            } catch (retryError) {
+                console.error('❌ ClipGo Content Script: Failed to initialize TextSelectionHandler on retry:', retryError);
+            }
+        }, 2000);
+    }
+}
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => {
+        initializeContentScript();
+    });
+} else {
+    initializeContentScript();
+}
+
+// Export for debugging and testing
 window.textSelectionHandler = textSelectionHandler;
+window.PopupManager = PopupManager;

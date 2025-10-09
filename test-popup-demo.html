@@ -173,6 +173,7 @@
             <button onclick="testPopupPosition()">위치 계산 테스트</button>
             <button onclick="testThemeDetection()">테마 감지 테스트</button>
             <button onclick="showTestResults()">테스트 결과 보기</button>
+            <button onclick="testDataSync()">동기화 테스트</button>
         </div>
 
         <div style="text-align: center; margin-top: 20px;">
@@ -568,7 +569,20 @@
 
         function saveTestClip() {
             const title = document.getElementById('test-title').value;
-            console.log('💾 테스트 저장:', { title });
+            const categorySelect = document.getElementById('test-category');
+            const category = categorySelect ? categorySelect.value : 'general';
+
+            console.log('💾 테스트 저장:', { title, category });
+
+            // 실제 저장 로직 추가
+            saveClipToStorage({
+                title: title,
+                text: getCurrentSelectedText(),
+                category: category,
+                source: detectAIService(),
+                url: window.location.href,
+                createdAt: Date.now()
+            });
 
             // 토스트 알림 표시
             showToast('Saved ✓');
@@ -579,9 +593,285 @@
             // 테스트 결과 업데이트
             const results = document.getElementById('testResults');
             const testItem = document.createElement('li');
-            testItem.innerHTML = `✓ 저장 성공: "${title}"`;
+            testItem.innerHTML = `✓ 저장 성공: "${title}" (환경: ${detectEnvironment().type})`;
             testItem.style.color = '#28a745';
             results.querySelector('ul').appendChild(testItem);
+
+            // 저장 후 동기화 테스트
+            setTimeout(testDataSync, 1000);
+        }
+
+        // 현재 선택된 텍스트 가져오기
+        function getCurrentSelectedText() {
+            const selection = window.getSelection();
+            return selection ? selection.toString().trim() : '';
+        }
+
+        // 실제 저장 함수
+        async function saveClipToStorage(clipData) {
+            try {
+                // 환경 감지
+                const env = detectEnvironment();
+                console.log('🔍 감지된 환경:', env);
+
+                switch (env.type) {
+                    case 'extension':
+                        // 확장 프로그램 환경: 백그라운드 스크립트로 전송
+                        await saveViaExtension(clipData);
+                        break;
+                    case 'chrome-storage':
+                        // Chrome Storage API 직접 사용 가능
+                        await saveWithChromeStorage(clipData);
+                        break;
+                    case 'storage-manager':
+                        // StorageManager 클래스 사용 가능
+                        await saveWithStorageManager(clipData);
+                        break;
+                    case 'local-storage':
+                    default:
+                        // localStorage에 저장 (fallback)
+                        await saveWithLocalStorage(clipData);
+                        break;
+                }
+            } catch (error) {
+                console.error('❌ 저장 실패:', error);
+                // 최종 fallback: localStorage에 저장
+                await saveWithLocalStorage(clipData);
+            }
+        }
+
+        // 환경 감지 함수
+        function detectEnvironment() {
+            // 확장 프로그램 환경 확인
+            if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.id) {
+                return { type: 'extension', context: 'chrome-extension' };
+            }
+
+            // Chrome Storage API 사용 가능 확인
+            if (typeof chrome !== 'undefined' && chrome.storage) {
+                return { type: 'chrome-storage', context: 'chrome-api' };
+            }
+
+            // StorageManager 클래스 사용 가능 확인
+            if (typeof StorageManager !== 'undefined') {
+                return { type: 'storage-manager', context: 'storage-manager-class' };
+            }
+
+            // 기본: localStorage만 사용 가능
+            return { type: 'local-storage', context: 'web-page' };
+        }
+
+        // 확장 프로그램을 통한 저장
+        async function saveViaExtension(clipData) {
+            await chrome.runtime.sendMessage({
+                action: 'saveClipFromSelection',
+                text: clipData.text,
+                url: clipData.url,
+                title: clipData.title,
+                clipOptions: {
+                    title: clipData.title,
+                    categoryIds: [clipData.category]
+                }
+            });
+            console.log('✅ 확장 프로그램을 통해 저장 성공');
+        }
+
+        // Chrome Storage API를 사용한 저장
+        async function saveWithChromeStorage(clipData) {
+            return new Promise((resolve, reject) => {
+                chrome.storage.local.get(['clips'], (result) => {
+                    const clips = result.clips || [];
+                    const newClip = {
+                        id: Date.now().toString(),
+                        title: clipData.title,
+                        text: clipData.text,
+                        tags: [],
+                        categoryIds: [clipData.category],
+                        url: clipData.url,
+                        source: clipData.source,
+                        createdAt: clipData.createdAt,
+                        updatedAt: clipData.createdAt
+                    };
+
+                    clips.push(newClip);
+                    chrome.storage.local.set({ clips }, () => {
+                        if (chrome.runtime.lastError) {
+                            reject(chrome.runtime.lastError);
+                        } else {
+                            console.log('✅ Chrome Storage에 저장 성공:', newClip);
+                            resolve(newClip);
+                        }
+                    });
+                });
+            });
+        }
+
+        // StorageManager 직접 호출 메커니즘
+        async function saveWithStorageManager(clipData) {
+            try {
+                // StorageManager 클래스가 있는지 확인
+                if (typeof StorageManager !== 'undefined') {
+                    const storageManager = new StorageManager();
+                    await storageManager.init();
+
+                    const newClip = {
+                        id: Date.now().toString(),
+                        title: clipData.title,
+                        text: clipData.text,
+                        tags: [],
+                        categoryIds: [clipData.category],
+                        url: clipData.url,
+                        source: clipData.source,
+                        createdAt: new Date(clipData.createdAt).toISOString(),
+                        updatedAt: new Date(clipData.createdAt).toISOString()
+                    };
+
+                    const savedClip = await storageManager.createClip(newClip);
+                    console.log('✅ StorageManager를 통해 저장 성공:', savedClip);
+                    return savedClip;
+                } else {
+                    // StorageManager가 없으면 Chrome Storage API 직접 사용
+                    return await saveWithChromeStorage(clipData);
+                }
+            } catch (error) {
+                console.error('❌ StorageManager 저장 실패:', error);
+                throw error;
+            }
+        }
+
+        // localStorage를 사용한 저장 (fallback)
+        async function saveWithLocalStorage(clipData) {
+            const clips = JSON.parse(localStorage.getItem('clips') || '[]');
+            const newClip = {
+                id: Date.now().toString(),
+                title: clipData.title,
+                text: clipData.text,
+                tags: [],
+                categoryIds: [clipData.category],
+                url: clipData.url,
+                source: clipData.source,
+                createdAt: clipData.createdAt,
+                updatedAt: clipData.createdAt
+            };
+
+            clips.push(newClip);
+            localStorage.setItem('clips', JSON.stringify(clips));
+
+            console.log('✅ localStorage에 저장 성공:', newClip);
+
+            // StorageChangeEvent 시뮬레이션 (테스트용)
+            window.dispatchEvent(new StorageEvent('storage', {
+                key: 'clips',
+                newValue: JSON.stringify(clips),
+                url: window.location.href
+            }));
+
+            return newClip;
+        }
+
+        // 데이터 동기화 테스트 함수
+        async function testDataSync() {
+            console.log('🔄 데이터 동기화 테스트 시작...');
+
+            try {
+                const env = detectEnvironment();
+                let storedClips = [];
+
+                // 환경에 따라 저장된 데이터 확인
+                switch (env.type) {
+                    case 'extension':
+                    case 'chrome-storage':
+                        storedClips = await getClipsFromChromeStorage();
+                        break;
+                    case 'storage-manager':
+                        storedClips = await getClipsFromStorageManager();
+                        break;
+                    case 'local-storage':
+                    default:
+                        storedClips = JSON.parse(localStorage.getItem('clips') || '[]');
+                        break;
+                }
+
+                console.log('📊 저장된 클립 수:', storedClips.length);
+
+                // 테스트 결과 업데이트
+                const results = document.getElementById('testResults');
+                const syncItem = document.createElement('li');
+                syncItem.innerHTML = `🔄 동기화 확인: ${storedClips.length}개의 클립이 저장됨`;
+                syncItem.style.color = storedClips.length > 0 ? '#28a745' : '#ffc107';
+                results.querySelector('ul').appendChild(syncItem);
+
+                // 확장 프로그램 팝업과의 동기화 테스트 (가능한 경우)
+                if (env.type === 'extension') {
+                    await testExtensionPopupSync(storedClips);
+                }
+
+            } catch (error) {
+                console.error('❌ 동기화 테스트 실패:', error);
+                const results = document.getElementById('testResults');
+                const errorItem = document.createElement('li');
+                errorItem.innerHTML = `❌ 동기화 테스트 실패: ${error.message}`;
+                errorItem.style.color = '#dc3545';
+                results.querySelector('ul').appendChild(errorItem);
+            }
+        }
+
+        // Chrome Storage에서 클립 가져오기
+        async function getClipsFromChromeStorage() {
+            return new Promise((resolve, reject) => {
+                chrome.storage.local.get(['clips'], (result) => {
+                    if (chrome.runtime.lastError) {
+                        reject(chrome.runtime.lastError);
+                    } else {
+                        resolve(result.clips || []);
+                    }
+                });
+            });
+        }
+
+        // StorageManager에서 클립 가져오기
+        async function getClipsFromStorageManager() {
+            try {
+                if (typeof StorageManager !== 'undefined') {
+                    const storageManager = new StorageManager();
+                    await storageManager.init();
+                    return await storageManager.getClips();
+                } else {
+                    return [];
+                }
+            } catch (error) {
+                console.error('StorageManager에서 데이터 가져오기 실패:', error);
+                return [];
+            }
+        }
+
+        // 확장 프로그램 팝업과의 동기화 테스트
+        async function testExtensionPopupSync(storedClips) {
+            try {
+                // 백그라운드 스크립트에 동기화 상태 요청
+                const response = await chrome.runtime.sendMessage({ action: 'getSyncStatus' });
+
+                if (response && response.success) {
+                    const status = response.data;
+                    console.log('📊 확장 프로그램 동기화 상태:', status);
+
+                    const results = document.getElementById('testResults');
+                    const extensionSyncItem = document.createElement('li');
+                    extensionSyncItem.innerHTML = `🔗 확장 프로그램 동기화: ${status.clipCount}개 클립, ${status.categoryCount}개 카테고리`;
+                    extensionSyncItem.style.color = '#28a745';
+                    results.querySelector('ul').appendChild(extensionSyncItem);
+
+                    // 데이터 일치 여부 확인
+                    if (status.clips && status.clips.length === storedClips.length) {
+                        const matchItem = document.createElement('li');
+                        matchItem.innerHTML = `✅ 데이터 일치 확인: 드래그 팝업 ↔ 확장 프로그램 팝업`;
+                        matchItem.style.color = '#28a745';
+                        results.querySelector('ul').appendChild(matchItem);
+                    }
+                }
+            } catch (error) {
+                console.error('확장 프로그램 동기화 테스트 실패:', error);
+            }
         }
 
         function showToast(message) {

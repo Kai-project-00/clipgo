@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ChatGPT Simulation - ClipGo Test</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 0;
+            padding: 0;
+            background: #343541;
+            color: #ececf1;
+        }
+        .chatgpt-container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            min-height: 100vh;
+        }
+        .chat-header {
+            text-align: center;
+            padding: 20px 0;
+            border-bottom: 1px solid #444;
+            margin-bottom: 20px;
+        }
+        .chat-messages {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        .chat-message {
+            display: flex;
+            gap: 12px;
+            align-items: flex-start;
+        }
+        .chat-message.user {
+            flex-direction: row-reverse;
+        }
+        .chat-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 14px;
+        }
+        .chat-message.user .chat-avatar {
+            background: #5436da;
+        }
+        .chat-message.assistant .chat-avatar {
+            background: #10a37f;
+        }
+        .chat-content {
+            flex: 1;
+            max-width: 70%;
+        }
+        .chat-message.user .chat-content {
+            text-align: right;
+        }
+        .message-text {
+            background: #343541;
+            padding: 12px 16px;
+            border-radius: 8px;
+            border: 1px solid #444;
+        }
+        .chat-message.user .message-text {
+            background: #343541;
+            border: 1px solid #444;
+        }
+        .copy-button {
+            background: none;
+            border: none;
+            color: #8e8ea0;
+            cursor: pointer;
+            padding: 4px 8px;
+            font-size: 12px;
+            margin-top: 8px;
+        }
+        .copy-button:hover {
+            color: #ececf1;
+        }
+        .copy-button.copied {
+            color: #10a37f;
+        }
+        .input-area {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: #343541;
+            border-top: 1px solid #444;
+            padding: 20px;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        .input-box {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+        .input-field {
+            flex: 1;
+            background: #40414f;
+            border: 1px solid #444;
+            border-radius: 8px;
+            padding: 12px 16px;
+            color: #ececf1;
+            font-size: 16px;
+            resize: none;
+        }
+        .send-button {
+            background: #10a37f;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 12px 24px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        .send-button:hover {
+            background: #0d8f6f;
+        }
+    </style>
+</head>
+<body>
+    <div class="chatgpt-container">
+        <div class="chat-header">
+            <h1>ChatGPT Simulation</h1>
+            <p>ClipGo 확장 프로그램 테스트를 위한 ChatGPT 인터페이스 시뮬레이션</p>
+        </div>
+
+        <div class="chat-messages">
+            <div class="chat-message user">
+                <div class="chat-avatar">U</div>
+                <div class="chat-content">
+                    <div class="message-text" selectable="true">
+                        인공지능이 현대 교육에 미치는 영향에 대해 설명해주세요.
+                    </div>
+                    <button class="copy-button" onclick="copyToClipboard(this)">복사</button>
+                </div>
+            </div>
+
+            <div class="chat-message assistant">
+                <div class="chat-avatar">A</div>
+                <div class="chat-content">
+                    <div class="message-text" selectable="true">
+                        인공지능은 현대 교육에 혁명적인 변화를 가져오고 있습니다. 개인화된 학습 경험을 제공하여 각 학생의 학습 스타일과 속도에 맞춘 교육이 가능해졌습니다. AI 기반 적응형 학습 시스템은 학생의 진행 상황을 실시간으로 분석하고, 어려움을 겪는 부분을 식별하며, 맞춤형 피드백을 제공합니다.
+                    </div>
+                    <button class="copy-button" onclick="copyToClipboard(this)">복사</button>
+                </div>
+            </div>
+
+            <div class="chat-message user">
+                <div class="chat-avatar">U</div>
+                <div class="chat-content">
+                    <div class="message-text" selectable="true">
+                        AI 교육의 장점과 단점은 무엇인가요?
+                    </div>
+                    <button class="copy-button" onclick="copyToClipboard(this)">복사</button>
+                </div>
+            </div>
+
+            <div class="chat-message assistant">
+                <div class="chat-avatar">A</div>
+                <div class="chat-content">
+                    <div class="message-text" selectable="true">
+                        **장점:**
+                        - 개인화된 학습 경험 제공
+                        - 24/7 접근 가능성
+                        - 실시간 피드백과 평가
+                        - 데이터 기반의 학습 분석
+
+                        **단점:**
+                        - 기술적 인프라 의존성
+                        - 개인정보 보호 문제
+                        - 인간 교사와의 상호작용 감소
+                        - 디지털 격차 가능성
+                    </div>
+                    <button class="copy-button" onclick="copyToClipboard(this)">복사</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 모의 Chrome API 로드 -->
+    <script src="test-mock-chrome-api.js"></script>
+
+    <!-- ClipGo 콘텐츠 스크립트 로드 -->
+    <script src="src/StorageManager.js"></script>
+    <script src="src/CategoryManager.js"></script>
+    <script src="src/ClipManager.js"></script>
+    <script src="content.js"></script>
+
+    <script>
+        function copyToClipboard(button) {
+            const messageText = button.parentElement.querySelector('.message-text');
+            const text = messageText.textContent;
+
+            navigator.clipboard.writeText(text).then(() => {
+                button.textContent = '복사됨';
+                button.classList.add('copied');
+
+                setTimeout(() => {
+                    button.textContent = '복사';
+                    button.classList.remove('copied');
+                }, 2000);
+            }).catch(err => {
+                console.error('복사 실패:', err);
+            });
+        }
+
+        // 드래그 선택 이벤트 핸들러
+        document.addEventListener('mouseup', () => {
+            const selection = window.getSelection();
+            if (selection.toString().length > 0) {
+                console.log('텍스트 선택됨:', selection.toString().substring(0, 100));
+            }
+        });
+    </script>
+</body>
+</html>

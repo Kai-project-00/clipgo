@@ -13,7 +13,8 @@
     "tabs"
   ],
   "host_permissions": [
-    "<all_urls>"
+    "<all_urls>",
+    "file://*/*"
   ],
   "background": {
     "service_worker": "background.js"
@@ -21,18 +22,28 @@
   "content_scripts": [
     {
       "matches": ["https://chat.openai.com/*"],
-      "js": ["test-simple.js"],
+      "js": ["src/StorageManager.js", "src/CategoryManager.js", "src/ClipManager.js", "content.js"],
       "run_at": "document_end"
     },
     {
       "matches": ["https://claude.ai/*"],
-      "js": ["test-simple.js"],
+      "js": ["src/StorageManager.js", "src/CategoryManager.js", "src/ClipManager.js", "content.js"],
+      "run_at": "document_end"
+    },
+    {
+      "matches": ["http://localhost:*/*", "https://localhost:*/*"],
+      "js": ["src/StorageManager.js", "src/CategoryManager.js", "src/ClipManager.js", "content.js"],
       "run_at": "document_end"
     },
     {
       "matches": ["<all_urls>"],
-      "js": ["content.js"],
+      "js": ["src/StorageManager.js", "src/CategoryManager.js", "src/ClipManager.js", "content.js"],
       "run_at": "document_idle"
+    },
+    {
+      "matches": ["file://*/*"],
+      "js": ["src/StorageManager.js", "src/CategoryManager.js", "src/ClipManager.js", "content.js"],
+      "run_at": "document_end"
     }
   ],
   "action": {
@@ -62,8 +73,8 @@
   },
   "web_accessible_resources": [
     {
-      "resources": ["popup.html", "popup-overlay.css", "src/StorageManager.js", "src/CategoryManager.js", "src/ClipManager.js", "src/PopupManager.js"],
-      "matches": ["<all_urls>"]
+      "resources": ["popup.html", "popup-overlay.css", "popup.css", "src/StorageManager.js", "src/CategoryManager.js", "src/ClipManager.js", "src/PopupManager.js", "content.js"],
+      "matches": ["<all_urls>", "file://*/*"]
     }
   ]
 }

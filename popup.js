@@ -12,30 +12,64 @@ class PopupController {
 
   async init() {
     try {
+      console.log('🚀 PopupController 초기화 시작...');
+
+      // Check if required classes are available
+      console.log('🔍 StorageManager available:', typeof StorageManager !== 'undefined');
+      console.log('🔍 CategoryManager available:', typeof CategoryManager !== 'undefined');
+      console.log('🔍 ClipManager available:', typeof ClipManager !== 'undefined');
+
       // Initialize StorageManager
       if (typeof StorageManager !== 'undefined') {
+        console.log('📦 StorageManager 초기화 시작...');
         this.storageManager = new StorageManager();
         await this.storageManager.init();
+        console.log('✅ StorageManager 초기화 완료:', this.storageManager.initialized);
+      } else {
+        console.error('❌ StorageManager 클래스를 찾을 수 없음');
+        throw new Error('StorageManager class not found');
       }
 
       // Initialize CategoryManager
       if (typeof CategoryManager !== 'undefined' && this.storageManager) {
+        console.log('📂 CategoryManager 초기화 시작...');
         this.categoryManager = new CategoryManager(this.storageManager);
         await this.categoryManager.init();
+        console.log('✅ CategoryManager 초기화 완료');
+      } else {
+        console.warn('⚠️ CategoryManager를 초기화할 수 없음');
       }
 
       // Initialize ClipManager
       if (typeof ClipManager !== 'undefined' && this.storageManager) {
+        console.log('📋 ClipManager 초기화 시작...');
         this.clipManager = new ClipManager(this.storageManager, this.categoryManager);
         await this.clipManager.init();
+        console.log('✅ ClipManager 초기화 완료');
+      } else {
+        console.warn('⚠️ ClipManager를 초기화할 수 없음');
       }
 
+      console.log('🔧 이벤트 리스너 설정...');
       this.setupEventListeners();
-      this.loadData();
+
+      console.log('📥 데이터 로딩 시작...');
+      await this.loadData();
+
+      console.log('🎨 뷰 업데이트 시작...');
       this.updateView();
+
+      // 추가: 초기화 후 updateClipsList() 명시적 호출
+      console.log('🔄 초기화 후 updateClipsList() 강제 호출...');
+      setTimeout(() => {
+        this.updateClipsList();
+      }, 100);
+
+      console.log('✅ PopupController 초기화 완료');
     } catch (error) {
-      console.error('Initialization error:', error);
-      this.showToast('Initialization failed', 'error');
+      console.error('❌ Initialization error:', error);
+      console.error('스택 트레이스:', error.stack);
+      this.showToast(`Initialization failed: ${error.message}`, 'error');
     }
   }
 
@@ -93,22 +127,231 @@ class PopupController {
         this.changeTheme(e.target.value);
       });
     }
+
+    // 스토리지 변경 리스너 설정
+    this.setupStorageChangeListener();
+
+    // 팝업 가시성 변경 감지
+    this.setupVisibilityChangeListener();
+  }
+
+  /**
+   * 스토리지 변경 리스너 설정
+   */
+  setupStorageChangeListener() {
+    // 백그라운드에서 오는 스토리지 변경 메시지 수신
+    chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+      if (request.action === 'storageChanged') {
+        console.log('Popup received storage change message:', request.dataType);
+        this.handleStorageChange(request.dataType, request.changes);
+      }
+    });
+
+    // 탭 메시지 수신 (드래그 팝업에서 오는 메시지)
+    chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+      if (request.action === 'storageChanged') {
+        console.log('Popup received tab message:', request.dataType);
+        this.handleStorageChange(request.dataType, request.changes);
+        sendResponse({success: true});
+      }
+    });
+
+    // 직접 스토리지 변경 감지
+    chrome.storage.onChanged.addListener((changes, areaName) => {
+      if (areaName === 'local') {
+        Object.keys(changes).forEach(key => {
+          if (key === 'clips' || key === 'categories') {
+            console.log('Popup detected direct storage change:', key);
+            this.handleStorageChange(key, changes[key]);
+          }
+        });
+      }
+    });
+  }
+
+  /**
+   * 스토리지 변경 처리
+   * @param {string} dataType - 변경된 데이터 타입
+   * @param {Object} changes - 변경 정보
+   */
+  handleStorageChange(dataType, changes) {
+    console.log(`🔄 Storage changed: ${dataType}`, changes);
+
+    // 변경된 데이터만 새로고침
+    if (dataType === 'clips') {
+      this.refreshClipsData();
+    } else if (dataType === 'categories') {
+      this.refreshCategoriesData();
+    }
+
+    // 알림 표시
+    this.showSyncNotification(dataType);
+  }
+
+  /**
+   * 클립 데이터 새로고침
+   */
+  async refreshClipsData() {
+    try {
+      if (this.clipManager) {
+        const clips = await this.clipManager.getAllClips();
+        this.clips = clips;
+        this.updateClipsList();
+        console.log('🔄 Clips data refreshed');
+      }
+    } catch (error) {
+      console.error('Error refreshing clips data:', error);
+    }
+  }
+
+  /**
+   * 카테고리 데이터 새로고침
+   */
+  async refreshCategoriesData() {
+    try {
+      if (this.categoryManager) {
+        const categories = await this.categoryManager.getAllCategories();
+        this.categories = categories;
+        this.updateCategoryTree();
+        console.log('🔄 Categories data refreshed');
+      }
+    } catch (error) {
+      console.error('Error refreshing categories data:', error);
+    }
+  }
+
+  /**
+   * 동기화 알림 표시
+   * @param {string} dataType - 동기화된 데이터 타입
+   */
+  showSyncNotification(dataType) {
+    const messages = {
+      clips: '클립 데이터가 동기화되었습니다',
+      categories: '카테고리 데이터가 동기화되었습니다'
+    };
+
+    const message = messages[dataType] || '데이터가 동기화되었습니다';
+
+    // 작은 알림 표시
+    const notification = document.createElement('div');
+    notification.className = 'sync-notification';
+    notification.textContent = '🔄 ' + message;
+    notification.style.cssText = `
+      position: fixed;
+      top: 10px;
+      right: 10px;
+      background: #4CAF50;
+      color: white;
+      padding: 8px 12px;
+      border-radius: 4px;
+      font-size: 12px;
+      z-index: 10000;
+      animation: slideIn 0.3s ease-out;
+    `;
+
+    document.body.appendChild(notification);
+
+    // 3초 후 제거
+    setTimeout(() => {
+      notification.remove();
+    }, 3000);
+  }
+
+  /**
+   * 팝업 가시성 변경 감지
+   */
+  setupVisibilityChangeListener() {
+    // 팝업 가시성 변경 감지
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden) {
+        // 팝업이 다시 보일 때 데이터 새로고침
+        this.refreshDataOnVisibilityChange();
+      }
+    });
+
+    // 페이지 포커스 시 데이터 새로고침
+    window.addEventListener('focus', () => {
+      this.refreshDataOnVisibilityChange();
+    });
+  }
+
+  /**
+   * 팝업 가시성 변경 시 데이터 새로고침
+   */
+  async refreshDataOnVisibilityChange() {
+    try {
+      console.log('🔄 Refreshing data on visibility change');
+
+      // 마지막 새로고침 시간 확인 (과도한 새로고침 방지)
+      const now = Date.now();
+      if (this.lastRefreshTime && now - this.lastRefreshTime < 1000) {
+        return;
+      }
+
+      this.lastRefreshTime = now;
+
+      // 백그라운드에서 최신 데이터 요청
+      const response = await chrome.runtime.sendMessage({ action: 'refreshData' });
+
+      if (response && response.success) {
+        const { clips, categories } = response.data;
+
+        // 캐시된 데이터 업데이트
+        this.clips = clips || this.clips;
+        this.categories = categories || this.categories;
+
+        // UI 업데이트
+        this.updateView();
+
+        console.log('🔄 Data refreshed from background');
+      }
+    } catch (error) {
+      console.error('Error refreshing data on visibility change:', error);
+    }
   }
 
   async loadData() {
     try {
+      console.log('🔄 PopupController.loadData() 시작...');
+
+      // Check if managers are initialized
+      if (!this.storageManager) {
+        console.error('StorageManager not initialized');
+        this.showToast('StorageManager not initialized', 'error');
+        return;
+      }
+
+      if (!this.storageManager.initialized) {
+        console.error('StorageManager not properly initialized');
+        this.showToast('StorageManager initialization failed', 'error');
+        return;
+      }
+
+      console.log('✅ StorageManager initialized:', this.storageManager.initialized);
+
       // Load categories
       if (this.categoryManager) {
+        console.log('📂 카테고리 로딩 시작...');
         this.categories = await this.categoryManager.getAllCategories();
+        console.log('✅ 카테고리 로딩 완료:', this.categories.length, '개');
+      } else {
+        console.warn('⚠️ CategoryManager not initialized');
       }
 
       // Load clips
       if (this.clipManager) {
+        console.log('📋 클립 로딩 시작...');
         this.clips = await this.clipManager.getAllClips();
+        console.log('✅ 클립 로딩 완료:', this.clips.length, '개');
+      } else {
+        console.warn('⚠️ ClipManager not initialized');
       }
+
+      console.log('✅ 모든 데이터 로딩 완료');
     } catch (error) {
-      console.error('Error loading data:', error);
-      this.showToast('Error loading data', 'error');
+      console.error('❌ Error loading data:', error);
+      console.error('스택 트레이스:', error.stack);
+      this.showToast(`Error loading data: ${error.message}`, 'error');
     }
   }
 
@@ -165,28 +408,52 @@ class PopupController {
   }
 
   updateClipsList() {
+    console.log('🔄 updateClipsList() 호출됨');
+    console.log('📊 현재 클립 수:', this.clips ? this.clips.length : 'undefined');
+
     const container = document.getElementById('clips-container');
     const emptyState = document.getElementById('empty-state');
 
-    if (!container) return;
+    console.log('🔍 container element:', container ? '찾음' : '찾지 못함');
+    console.log('🔍 emptyState element:', emptyState ? '찾음' : '찾지 못함');
+
+    if (!container) {
+      console.error('❌ clips-container element를 찾을 수 없음');
+      return;
+    }
 
     // Filter clips by selected category
-    let filteredClips = this.clips;
+    let filteredClips = this.clips || [];
+    console.log('📋 필터링 전 클립 수:', filteredClips.length);
+
     if (this.selectedCategoryId) {
       filteredClips = this.clips.filter(clip =>
         clip.categoryIds && clip.categoryIds.includes(this.selectedCategoryId)
       );
+      console.log('📋 카테고리 필터링 후 클립 수:', filteredClips.length);
     }
+
+    console.log('🎬 최종 표시할 클립 수:', filteredClips.length);
 
     if (filteredClips.length === 0) {
       container.innerHTML = '';
       emptyState?.classList.remove('hidden');
+      console.log('📭 빈 상태 표시');
     } else {
       emptyState?.classList.add('hidden');
-      container.innerHTML = filteredClips.map(clip => this.createClipCard(clip)).join('');
+      console.log('📄 클립 카드 생성 시작...');
+
+      const clipCards = filteredClips.map(clip => this.createClipCard(clip));
+      console.log('📄 생성된 클립 카드 수:', clipCards.length);
+
+      container.innerHTML = clipCards.join('');
+      console.log('✅ 클립 카드 HTML 적용 완료');
 
       // Add event listeners to clip cards
-      container.querySelectorAll('.clip-card').forEach(card => {
+      const cards = container.querySelectorAll('.clip-card');
+      console.log('🔗 이벤트 리스너 추가할 카드 수:', cards.length);
+
+      cards.forEach(card => {
         const clipId = card.getAttribute('data-clip-id');
 
         // Copy button
@@ -207,6 +474,8 @@ class PopupController {
           this.deleteClip(clipId);
         });
       });
+
+      console.log('✅ 모든 이벤트 리스너 추가 완료');
     }
   }
 

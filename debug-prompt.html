@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ClipGo 즉시 테스트</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; background: #f5f5f5; }
+        .test-text {
+            background: white;
+            padding: 30px;
+            margin: 20px 0;
+            border-radius: 8px;
+            border: 2px solid #007bff;
+            user-select: text;
+            cursor: text;
+            font-size: 16px;
+            line-height: 1.6;
+        }
+        .console {
+            background: #1e1e1e;
+            color: #fff;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: monospace;
+            margin: 20px 0;
+            height: 300px;
+            overflow-y: auto;
+        }
+        .btn {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            margin: 5px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .btn:hover { background: #0056b3; }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 6px;
+            font-weight: bold;
+        }
+        .status.success { background: #d4edda; color: #155724; }
+        .status.error { background: #f8d7da; color: #721c24; }
+        .status.info { background: #d1ecf1; color: #0c5460; }
+    </style>
+</head>
+<body>
+    <h1>🧪 ClipGo 즉시 디버깅 테스트</h1>
+
+    <div class="status info">
+        <strong>목표:</strong> 텍스트 선택 시 팝업이 표시되지 않는 문제를 즉시 진단합니다.
+    </div>
+
+    <div class="test-text" id="test-text">
+        <h3>📝 테스트용 텍스트입니다</h3>
+        <p>이 텍스트를 마우스로 드래그하여 선택해보세요. ClipGo 확장 프로그램이 정상적으로 작동한다면 저장 팝업이 나타나야 합니다.</p>
+        <p>인공지능과 머신러닝은 현대 기술의 핵심입니다. 딥러닝은 신경망을 기반으로 한 머신러닝의 한 분야로서, 이미지 인식, 자연어 처리, 음성 인식 등 다양한 분야에서 혁신적인 성과를 내고 있습니다.</p>
+    </div>
+
+    <div>
+        <button class="btn" onclick="checkEverything()">전체 상태 확인</button>
+        <button class="btn" onclick="forcePopup()">팝업 강제 표시</button>
+        <button class="btn" onclick="testSelection()">선택 테스트</button>
+        <button class="btn" onclick="clearConsole()">콘솔 지우기</button>
+    </div>
+
+    <div class="console" id="console"></div>
+
+    <script>
+        function log(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const color = type === 'error' ? '#ff6b6b' : type === 'success' ? '#51cf66' : '#74c0fc';
+            const consoleDiv = document.getElementById('console');
+            consoleDiv.innerHTML += `<div style="color: ${color}; margin: 2px 0;">[${timestamp}] ${message}</div>`;
+            consoleDiv.scrollTop = consoleDiv.scrollHeight;
+            console.log(`[ClipGo Debug] ${message}`);
+        }
+
+        function checkEverything() {
+            log('=== 전체 상태 확인 시작 ===', 'info');
+
+            // 1. Chrome API 확인
+            if (typeof chrome !== 'undefined' && chrome.runtime) {
+                log('✅ Chrome Runtime API 사용 가능', 'success');
+
+                if (chrome.runtime.id) {
+                    log(`✅ 확장 프로그램 ID: ${chrome.runtime.id}`, 'success');
+                } else {
+                    log('❌ 확장 프로그램 ID 없음', 'error');
+                }
+
+                // 백그라운드 스크립트 통신 테스트
+                chrome.runtime.sendMessage({ action: 'ping' }, (response) => {
+                    if (chrome.runtime.lastError) {
+                        log(`❌ 백그라운드 스크립트 통신 실패: ${chrome.runtime.lastError.message}`, 'error');
+                    } else {
+                        log('✅ 백그라운드 스크립트 통신 성공', 'success');
+                    }
+                });
+            } else {
+                log('❌ Chrome Runtime API 사용 불가', 'error');
+            }
+
+            // 2. 필수 클래스 확인
+            const classes = ['StorageManager', 'CategoryManager', 'ClipManager', 'PopupManager', 'TextSelectionHandler'];
+            classes.forEach(className => {
+                if (typeof window[className] !== 'undefined') {
+                    log(`✅ ${className} 클래스 로드됨`, 'success');
+                } else {
+                    log(`❌ ${className} 클래스 없음`, 'error');
+                }
+            });
+
+            // 3. 인스턴스 확인
+            if (window.textSelectionHandler) {
+                log('✅ TextSelectionHandler 인스턴스 있음', 'success');
+            } else {
+                log('❌ TextSelectionHandler 인스턴스 없음', 'error');
+            }
+
+            // 4. CSS 확인
+            const popupOverlay = document.querySelector('.chat-ai-popup-overlay');
+            if (popupOverlay) {
+                log('⚠️ 팝업 오버레이가 이미 존재함', 'error');
+            } else {
+                log('✅ 팝업 오버레이 없음 (정상)', 'success');
+            }
+
+            log('=== 전체 상태 확인 완료 ===', 'info');
+        }
+
+        function forcePopup() {
+            log('팝업 강제 생성 시도...', 'info');
+
+            try {
+                if (window.PopupManager) {
+                    const selection = window.getSelection();
+                    if (selection.rangeCount > 0) {
+                        const popupManager = new PopupManager();
+                        popupManager.showSelectionPopup(selection, {
+                            aiService: 'debug',
+                            isShadowDOM: false
+                        });
+                        log('✅ 팝업 강제 생성 명령 전송', 'success');
+                    } else {
+                        log('❌ 선택된 텍스트 없음', 'error');
+                    }
+                } else {
+                    log('❌ PopupManager 클래스 없음', 'error');
+                }
+            } catch (error) {
+                log(`❌ 팝업 생성 실패: ${error.message}`, 'error');
+                log(`스택: ${error.stack}`, 'error');
+            }
+        }
+
+        function testSelection() {
+            log('텍스트 선택 강제 테스트...', 'info');
+
+            const testElement = document.getElementById('test-text');
+            const range = document.createRange();
+            range.selectNodeContents(testElement);
+            const selection = window.getSelection();
+            selection.removeAllRanges();
+            selection.addRange(range);
+
+            log('✅ 텍스트 강제 선택 완료', 'success');
+
+            // mouseup 이벤트 강제 발생
+            const mouseEvent = new MouseEvent('mouseup', {
+                bubbles: true,
+                cancelable: true,
+                view: window
+            });
+
+            testElement.dispatchEvent(mouseEvent);
+            log('✅ mouseup 이벤트 발생 완료', 'success');
+
+            // 1초 후 팝업 확인
+            setTimeout(() => {
+                const popup = document.querySelector('.chat-ai-popup-overlay');
+                if (popup) {
+                    log('✅ 팝업이 표시되었습니다!', 'success');
+                } else {
+                    log('❌ 팝업이 표시되지 않았습니다', 'error');
+                }
+            }, 1000);
+        }
+
+        function clearConsole() {
+            document.getElementById('console').innerHTML = '';
+            log('콘솔이 지워졌습니다', 'info');
+        }
+
+        // 페이지 로드 시 자동 확인
+        window.addEventListener('load', () => {
+            log('페이지 로드 완료', 'success');
+            setTimeout(checkEverything, 1000);
+        });
+
+        // 텍스트 선택 이벤트 모니터링
+        document.addEventListener('mouseup', (e) => {
+            const selection = window.getSelection();
+            const selectedText = selection.toString().trim();
+
+            if (selectedText.length > 0) {
+                log(`텍스트 선택 감지: "${selectedText.substring(0, 30)}..."`, 'info');
+
+                // 500ms 후 팝업 확인
+                setTimeout(() => {
+                    const popup = document.querySelector('.chat-ai-popup-overlay');
+                    if (popup) {
+                        log('✅ 팝업 감지됨!', 'success');
+                    } else {
+                        log('❌ 팝업이 생성되지 않음', 'error');
+
+                        // 디버깅 정보 출력
+                        if (window.textSelectionHandler) {
+                            log('TextSelectionHandler 있음', 'info');
+                        } else {
+                            log('TextSelectionHandler 없음', 'error');
+                        }
+
+                        if (window.PopupManager) {
+                            log('PopupManager 클래스 있음', 'info');
+                        } else {
+                            log('PopupManager 클래스 없음', 'error');
+                        }
+                    }
+                }, 500);
+            }
+        }, true);
+    </script>
+</body>
+</html>
